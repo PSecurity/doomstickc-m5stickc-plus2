@@ -1,9 +1,14 @@
 /*
+<<<<<<< HEAD
   DoomStickC MVP v1.7 - Audio and Feedback
+=======
+  DoomStickC MVP v1.8 - Map and Level Expansion
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
   Hardware: M5StickC Plus2
   Framework: Arduino + M5Unified
 
   Base:
+<<<<<<< HEAD
     - v1.6 Visual Polish validada como funcional.
 
   Objetivo da v1.7:
@@ -12,6 +17,17 @@
     - Adicionar feedback visual para munição vazia.
     - Adicionar pulso visual de HP baixo.
     - Manter os controles e a base visual da v1.6.
+=======
+    - v1.7 Audio and Feedback validada como funcional.
+
+  Objetivo da v1.8:
+    - Adicionar progressão simples de fases.
+    - Adicionar múltiplos mapas internos.
+    - Adicionar contagem de fase no HUD.
+    - Reposicionar inimigos por fase.
+    - Reposicionar pickups por fase.
+    - Preservar gameplay, visual, áudio, controles e framebuffer.
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
 
   Controles:
     - Tela inicial: Botão A inicia
@@ -21,10 +37,6 @@
     - Power click rápido: usar / abrir porta
     - Power segurado: correr temporariamente
     - A + B na tela de morte/vitória: reiniciar
-
-  Observação:
-    Isto ainda NÃO é Doom/PrBoom completo com WAD.
-    É um Doom-like/raycasting leve para evoluir o projeto no M5StickC Plus2.
 */
 
 #include <Arduino.h>
@@ -77,6 +89,7 @@ static constexpr float ENEMY_ATTACK_DISTANCE = 0.55f;
 // Visual
 static constexpr uint32_t DAMAGE_FLASH_MS = 170;
 static constexpr uint32_t INTRO_MIN_MS = 900;
+<<<<<<< HEAD
 
 // Audio / feedback.
 // Se o speaker causar qualquer problema no seu ambiente, troque AUDIO_ENABLED para false.
@@ -84,6 +97,14 @@ static constexpr bool AUDIO_ENABLED = true;
 static constexpr uint8_t AUDIO_VOLUME = 110;
 
 // Frequências simples para feedback estilo protótipo.
+=======
+static constexpr uint32_t LEVEL_CLEAR_PAUSE_MS = 900;
+
+// Audio / feedback.
+static constexpr bool AUDIO_ENABLED = true;
+static constexpr uint8_t AUDIO_VOLUME = 110;
+
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
 static constexpr int TONE_SHOOT = 1800;
 static constexpr int TONE_EMPTY = 180;
 static constexpr int TONE_DAMAGE = 130;
@@ -92,9 +113,13 @@ static constexpr int TONE_DOOR = 780;
 static constexpr int TONE_START = 920;
 static constexpr int TONE_WIN = 1550;
 static constexpr int TONE_DEAD = 90;
+<<<<<<< HEAD
+=======
+static constexpr int TONE_LEVEL = 1320;
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
 
 // -----------------------------
-// MAPA INTERNO
+// MAPAS INTERNOS
 // # = parede
 // . = chão
 // D = porta
@@ -104,24 +129,64 @@ static constexpr int TONE_DEAD = 90;
 // -----------------------------
 static constexpr int MAP_W = 16;
 static constexpr int MAP_H = 16;
+static constexpr int LEVEL_COUNT = 3;
+static constexpr int ENEMY_COUNT = 4;
 
-const char initialMap[MAP_H][MAP_W + 1] = {
-  "################",
-  "#..............#",
-  "#..####....M...#",
-  "#..#..#....D...#",
-  "#..#..#........#",
-  "#..#..####.....#",
-  "#.......H......#",
-  "#......##......#",
-  "#......##..#####",
-  "#..............#",
-  "#####..D.......#",
-  "#..............#",
-  "#....####..M...#",
-  "#..............#",
-  "#............E.#",
-  "################"
+const char levelMaps[LEVEL_COUNT][MAP_H][MAP_W + 1] = {
+  {
+    "################",
+    "#..............#",
+    "#..####....M...#",
+    "#..#..#....D...#",
+    "#..#..#........#",
+    "#..#..####.....#",
+    "#.......H......#",
+    "#......##......#",
+    "#......##..#####",
+    "#..............#",
+    "#####..D.......#",
+    "#..............#",
+    "#....####..M...#",
+    "#..............#",
+    "#............E.#",
+    "################"
+  },
+  {
+    "################",
+    "#......M.......#",
+    "#..######..##..#",
+    "#..#....#..#...#",
+    "#..#D##.#..#E..#",
+    "#..#....#..##..#",
+    "#..####.#......#",
+    "#.......#..#####",
+    "#####D###......#",
+    "#..............#",
+    "#..H....####...#",
+    "#.......#..#...#",
+    "#..##...#..#...#",
+    "#..##......M...#",
+    "#..............#",
+    "################"
+  },
+  {
+    "################",
+    "#M.............#",
+    "#..##########..#",
+    "#..#........#..#",
+    "#..#..####..#..#",
+    "#..#..#H.#..#..#",
+    "#..#..#..#..#..#",
+    "#..D..#..D..#..#",
+    "#..#..#..#..#..#",
+    "#..#..####..#..#",
+    "#..#........#..#",
+    "#..##########..#",
+    "#......M.......#",
+    "#..........H...#",
+    "#............E.#",
+    "################"
+  }
 };
 
 char worldMap[MAP_H][MAP_W + 1];
@@ -142,12 +207,34 @@ struct Enemy {
   float anim;
 };
 
+<<<<<<< HEAD
 static constexpr int ENEMY_COUNT = 4;
 const Enemy initialEnemies[ENEMY_COUNT] = {
   {10.5f, 3.5f, true, 0, 0.0f},
   {12.5f, 9.5f, true, 0, 1.0f},
   {5.5f, 12.5f, true, 0, 2.0f},
   {10.5f, 13.5f, true, 0, 3.0f}
+=======
+const Enemy levelEnemies[LEVEL_COUNT][ENEMY_COUNT] = {
+  {
+    {10.5f, 3.5f, true, 0, 0.0f},
+    {12.5f, 9.5f, true, 0, 1.0f},
+    {5.5f, 12.5f, true, 0, 2.0f},
+    {10.5f, 13.5f, true, 0, 3.0f}
+  },
+  {
+    {12.5f, 2.5f, true, 0, 0.0f},
+    {4.5f, 6.5f, true, 0, 1.0f},
+    {10.5f, 9.5f, true, 0, 2.0f},
+    {6.5f, 13.5f, true, 0, 3.0f}
+  },
+  {
+    {12.5f, 3.5f, true, 0, 0.0f},
+    {3.5f, 4.5f, true, 0, 1.0f},
+    {12.5f, 10.5f, true, 0, 2.0f},
+    {8.5f, 13.5f, true, 0, 3.0f}
+  }
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
 };
 
 Enemy enemies[ENEMY_COUNT];
@@ -156,10 +243,17 @@ enum GameState {
   GAME_INTRO,
   GAME_PLAYING,
   GAME_DEAD,
+  GAME_LEVEL_CLEAR,
   GAME_WIN
 };
 
 GameState gameState = GAME_INTRO;
+<<<<<<< HEAD
+=======
+
+int currentLevel = 0;
+uint32_t levelClearStartedMs = 0;
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
 
 float tiltCenter = 0.0f;
 bool imuReady = false;
@@ -172,13 +266,16 @@ uint32_t statusUntilMs = 0;
 uint32_t damageFlashUntilMs = 0;
 uint32_t emptyAmmoFlashUntilMs = 0;
 uint32_t pickupFlashUntilMs = 0;
+<<<<<<< HEAD
 String statusLine = "DoomStickC v1.7";
+=======
+String statusLine = "DoomStickC v1.8";
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
 
 bool powerWasDown = false;
 bool powerHoldFired = false;
 uint32_t powerDownAtMs = 0;
 
-// FPS simples
 uint32_t fpsLastMs = 0;
 int fpsFrames = 0;
 int fpsValue = 0;
@@ -198,8 +295,11 @@ static inline void setStatus(const String& msg, uint32_t ttlMs = 1200) {
 static inline void playToneSafe(int freq, int durationMs) {
   if (!AUDIO_ENABLED) return;
   if (freq <= 0 || durationMs <= 0) return;
+<<<<<<< HEAD
 
   // M5Unified usa fila interna para o speaker; tons curtos funcionam bem para feedback.
+=======
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
   M5.Speaker.tone(freq, durationMs);
 }
 
@@ -236,25 +336,82 @@ static int enemiesAliveCount() {
   return n;
 }
 
+<<<<<<< HEAD
 static void copyInitialMap() {
+=======
+static void copyLevelMap(int level) {
+  if (level < 0) level = 0;
+  if (level >= LEVEL_COUNT) level = LEVEL_COUNT - 1;
+
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
   for (int y = 0; y < MAP_H; y++) {
     for (int x = 0; x <= MAP_W; x++) {
-      worldMap[y][x] = initialMap[y][x];
+      worldMap[y][x] = levelMaps[level][y][x];
     }
   }
 }
 
+<<<<<<< HEAD
 static void resetGame(bool startPlaying) {
   copyInitialMap();
+=======
+static void loadLevel(int level, bool keepStats) {
+  if (level < 0) level = 0;
+  if (level >= LEVEL_COUNT) level = LEVEL_COUNT - 1;
+
+  currentLevel = level;
+  copyLevelMap(currentLevel);
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
 
   player.x = 2.5f;
   player.y = 2.5f;
   player.a = 0.0f;
-  player.hp = PLAYER_MAX_HP;
-  player.ammo = PLAYER_START_AMMO;
+
+  if (!keepStats) {
+    player.hp = PLAYER_MAX_HP;
+    player.ammo = PLAYER_START_AMMO;
+  } else {
+    player.hp += 18;
+    if (player.hp > PLAYER_MAX_HP) player.hp = PLAYER_MAX_HP;
+    player.ammo += 8;
+  }
 
   for (int i = 0; i < ENEMY_COUNT; i++) {
-    enemies[i] = initialEnemies[i];
+    enemies[i] = levelEnemies[currentLevel][i];
+  }
+
+<<<<<<< HEAD
+  gameState = startPlaying ? GAME_PLAYING : GAME_INTRO;
+=======
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
+  sprintUntilMs = 0;
+  shootFlashUntilMs = 0;
+  damageFlashUntilMs = 0;
+  emptyAmmoFlashUntilMs = 0;
+  pickupFlashUntilMs = 0;
+  powerWasDown = false;
+  powerHoldFired = false;
+<<<<<<< HEAD
+  setStatus(startPlaying ? "Boa sorte" : "Pronto", 1000);
+=======
+
+  gameState = GAME_PLAYING;
+  setStatus("Fase " + String(currentLevel + 1), 1200);
+  playToneSafe(TONE_LEVEL, 120);
+}
+
+static void resetGame(bool startPlaying) {
+  currentLevel = 0;
+  player.hp = PLAYER_MAX_HP;
+  player.ammo = PLAYER_START_AMMO;
+  copyLevelMap(0);
+
+  player.x = 2.5f;
+  player.y = 2.5f;
+  player.a = 0.0f;
+
+  for (int i = 0; i < ENEMY_COUNT; i++) {
+    enemies[i] = levelEnemies[0][i];
   }
 
   gameState = startPlaying ? GAME_PLAYING : GAME_INTRO;
@@ -265,7 +422,8 @@ static void resetGame(bool startPlaying) {
   pickupFlashUntilMs = 0;
   powerWasDown = false;
   powerHoldFired = false;
-  setStatus(startPlaying ? "Boa sorte" : "Pronto", 1000);
+  setStatus(startPlaying ? "Fase 1" : "Pronto", 1000);
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
 }
 
 static bool hasLineOfSight(float x0, float y0, float x1, float y1) {
@@ -314,6 +472,20 @@ static void tryMove(float nx, float ny) {
   }
 }
 
+static void startLevelClear() {
+  if (currentLevel >= LEVEL_COUNT - 1) {
+    gameState = GAME_WIN;
+    playToneSafe(TONE_WIN, 180);
+    setStatus("Campanha concluida", 3000);
+    return;
+  }
+
+  gameState = GAME_LEVEL_CLEAR;
+  levelClearStartedMs = millis();
+  playToneSafe(TONE_WIN, 120);
+  setStatus("Fase concluida", 1500);
+}
+
 static void handlePickupAtPlayer() {
   int mx = (int)player.x;
   int my = (int)player.y;
@@ -333,9 +505,14 @@ static void handlePickupAtPlayer() {
     playToneSafe(TONE_PICKUP + 260, 70);
     setStatus("+12 Municao");
   } else if (c == 'E') {
+<<<<<<< HEAD
     gameState = GAME_WIN;
     playToneSafe(TONE_WIN, 180);
     setStatus("Fase concluida", 3000);
+=======
+    worldMap[my][mx] = '.';
+    startLevelClear();
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
   }
 }
 
@@ -494,7 +671,11 @@ static void drawCalibrationScreen(const char* msg) {
   M5.Display.setTextColor(rgb(180, 80, 255), BLACK);
   M5.Display.drawString("DoomStickC", SCREEN_W / 2, 25, 4);
   M5.Display.setTextColor(WHITE, BLACK);
+<<<<<<< HEAD
   M5.Display.drawString("v1.7 Audio Feedback", SCREEN_W / 2, 55, 2);
+=======
+  M5.Display.drawString("v1.8 Map Expansion", SCREEN_W / 2, 55, 2);
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
   M5.Display.drawString("Segure reto e parado", SCREEN_W / 2, 82, 2);
   M5.Display.setTextColor(rgb(120, 255, 180), BLACK);
   M5.Display.drawString(msg, SCREEN_W / 2, 106, 2);
@@ -560,6 +741,7 @@ static void drawIntroScreen() {
   frame.setTextSize(1);
 
   frame.setTextColor(rgb(185, 100, 255), BLACK);
+<<<<<<< HEAD
   frame.drawString("DOOMSTICKC", SCREEN_W / 2, 25, 4);
 
   frame.setTextColor(WHITE, BLACK);
@@ -574,6 +756,25 @@ static void drawIntroScreen() {
 
   frame.setTextColor(rgb(145, 90, 255), BLACK);
   frame.drawString("A=MOVER  B=TIRO  TILT=VIRAR", SCREEN_W / 2, 123, 1);
+=======
+  frame.drawString("DOOMSTICKC", SCREEN_W / 2, 24, 4);
+
+  frame.setTextColor(WHITE, BLACK);
+  frame.drawString("M5StickC Plus2", SCREEN_W / 2, 50, 2);
+
+  frame.setTextColor(rgb(120, 255, 180), BLACK);
+  frame.drawString("v1.8 Map Expansion", SCREEN_W / 2, 69, 2);
+
+  frame.setTextColor(rgb(200, 200, 255), BLACK);
+  frame.drawString("3 fases internas", SCREEN_W / 2, 87, 1);
+
+  uint32_t pulse = (millis() / 280) % 2;
+  frame.setTextColor(pulse ? YELLOW : rgb(180, 180, 180), BLACK);
+  frame.drawString("Pressione A para iniciar", SCREEN_W / 2, 104, 2);
+
+  frame.setTextColor(rgb(145, 90, 255), BLACK);
+  frame.drawString("A=MOVER  B=TIRO  TILT=VIRAR", SCREEN_W / 2, 124, 1);
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
 
   frame.pushSprite(0, 0);
 }
@@ -590,6 +791,13 @@ static void drawHud() {
 
   frame.setTextColor(neon, hudBg);
   frame.setCursor(4, 5);
+<<<<<<< HEAD
+=======
+  frame.print("L");
+  frame.print(currentLevel + 1);
+
+  frame.setCursor(22, 5);
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
   frame.print("HP");
 
   if (player.hp <= 25) {
@@ -599,6 +807,7 @@ static void drawHud() {
   } else {
     frame.setTextColor(rgb(120, 255, 180), hudBg);
   }
+<<<<<<< HEAD
   frame.setCursor(22, 5);
   frame.print(player.hp);
 
@@ -616,17 +825,44 @@ static void drawHud() {
 
   frame.setTextColor(rgb(255, 100, 90), hudBg);
   frame.setCursor(138, 5);
+=======
+  frame.setCursor(40, 5);
+  frame.print(player.hp);
+
+  int hpBarW = map(player.hp, 0, PLAYER_MAX_HP, 0, 28);
+  frame.drawRect(65, 5, 30, 7, rgb(75, 55, 95));
+  frame.fillRect(66, 6, hpBarW, 5, player.hp <= 25 ? RED : rgb(80, 255, 130));
+
+  frame.setTextColor(WHITE, hudBg);
+  frame.setCursor(100, 5);
+  frame.print("AM");
+  frame.setTextColor(player.ammo <= 4 ? RED : WHITE, hudBg);
+  frame.setCursor(119, 5);
+  frame.print(player.ammo);
+
+  frame.setTextColor(rgb(255, 100, 90), hudBg);
+  frame.setCursor(148, 5);
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
   frame.print("EN ");
   frame.print(enemiesAliveCount());
 
   if (millis() < sprintUntilMs) {
     frame.setTextColor(YELLOW, hudBg);
+<<<<<<< HEAD
     frame.setCursor(174, 5);
     frame.print("RUN");
   }
 
   frame.setTextColor(rgb(130, 255, 180), hudBg);
   frame.setCursor(205, 5);
+=======
+    frame.setCursor(181, 5);
+    frame.print("R");
+  }
+
+  frame.setTextColor(rgb(130, 255, 180), hudBg);
+  frame.setCursor(207, 5);
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
   frame.print(fpsValue);
   frame.print("F");
 }
@@ -759,6 +995,7 @@ static void drawEnemies() {
     uint16_t dark = rgb(60, 18, 20);
     uint16_t eye = rgb(255, 235, 90);
 
+<<<<<<< HEAD
     // sombra
     frame.fillEllipse(sx, sy + spriteH + 3, max(3, spriteW), 3, rgb(18, 12, 18));
 
@@ -773,6 +1010,15 @@ static void drawEnemies() {
     frame.drawFastHLine(sx - spriteW / 3, sy + spriteH / 2, max(2, spriteW * 2 / 3), dark);
 
     // chifres/braços fake
+=======
+    frame.fillEllipse(sx, sy + spriteH + 3, max(3, spriteW), 3, rgb(18, 12, 18));
+    frame.fillRoundRect(sx - spriteW / 2, sy, spriteW, spriteH, 4, body);
+    frame.drawRoundRect(sx - spriteW / 2, sy, spriteW, spriteH, 4, dark);
+    frame.fillRect(sx - spriteW / 2 + 2, sy + spriteH / 2, max(2, spriteW - 4), spriteH / 3, body2);
+    frame.fillCircle(sx - spriteW / 4, sy + spriteH / 4, 2, eye);
+    frame.fillCircle(sx + spriteW / 4, sy + spriteH / 4, 2, eye);
+    frame.drawFastHLine(sx - spriteW / 3, sy + spriteH / 2, max(2, spriteW * 2 / 3), dark);
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
     frame.drawLine(sx - spriteW / 2, sy + 4, sx - spriteW, sy - 5, dark);
     frame.drawLine(sx + spriteW / 2, sy + 4, sx + spriteW, sy - 5, dark);
     frame.drawLine(sx - spriteW / 2, sy + spriteH / 2, sx - spriteW, sy + spriteH / 2 + 8, dark);
@@ -783,11 +1029,17 @@ static void drawEnemies() {
 static void renderWorld() {
   frame.fillScreen(BLACK);
 
+<<<<<<< HEAD
   // céu/chão
   frame.fillRect(0, 19, SCREEN_W, (SCREEN_H - 19) / 2, rgb(20, 20, 40));
   frame.fillRect(0, 19 + (SCREEN_H - 19) / 2, SCREEN_W, (SCREEN_H - 19) / 2, rgb(28, 24, 23));
 
   // chão fake
+=======
+  frame.fillRect(0, 19, SCREEN_W, (SCREEN_H - 19) / 2, rgb(20, 20, 40));
+  frame.fillRect(0, 19 + (SCREEN_H - 19) / 2, SCREEN_W, (SCREEN_H - 19) / 2, rgb(28, 24, 23));
+
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
   for (int y = SCREEN_H / 2 + 10; y < SCREEN_H; y += 10) {
     frame.drawFastHLine(0, y, SCREEN_W, rgb(45, 35, 55));
   }
@@ -831,12 +1083,20 @@ static void renderWorld() {
     if (hitCell == 'D') {
       wallCol = rgb(shade, (uint8_t)(shade * 0.58f), 30);
     } else {
+<<<<<<< HEAD
       wallCol = rgb((uint8_t)(shade * 0.40f), (uint8_t)(shade * 0.34f), shade);
+=======
+      uint8_t phase = (uint8_t)(currentLevel * 16);
+      wallCol = rgb((uint8_t)(shade * 0.40f + phase), (uint8_t)(shade * 0.34f), shade);
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
     }
 
     frame.fillRect(x, ceiling, RAY_COLUMN_STEP, floorY - ceiling, wallCol);
 
+<<<<<<< HEAD
     // textura fake: linhas verticais + blocos
+=======
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
     int colIndex = x / RAY_COLUMN_STEP;
     if (colIndex % 8 == 0) {
       frame.drawFastVLine(x, ceiling, floorY - ceiling, rgb(10, 10, 18));
@@ -857,7 +1117,11 @@ static void renderWorld() {
   frame.setTextDatum(bottom_left);
   frame.setTextSize(1);
   frame.setTextColor(rgb(150, 255, 190), BLACK);
+<<<<<<< HEAD
   frame.fillRect(0, SCREEN_H - 11, 160, 11, BLACK);
+=======
+  frame.fillRect(0, SCREEN_H - 11, 170, 11, BLACK);
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
 
   if (millis() > statusUntilMs) {
     statusLine = imuReady ? "Pronto" : "IMU sem leitura";
@@ -865,28 +1129,70 @@ static void renderWorld() {
 
   frame.drawString(statusLine, 4, SCREEN_H - 1);
 
+<<<<<<< HEAD
   // efeito de pickup
+=======
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
   if (millis() < pickupFlashUntilMs) {
     frame.drawRect(0, 0, SCREEN_W, SCREEN_H, rgb(120, 255, 180));
   }
 
+<<<<<<< HEAD
   // efeito de munição vazia
+=======
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
   if (millis() < emptyAmmoFlashUntilMs) {
     frame.drawRect(0, 0, SCREEN_W, SCREEN_H, YELLOW);
     frame.drawRect(1, 1, SCREEN_W - 2, SCREEN_H - 2, YELLOW);
   }
 
+<<<<<<< HEAD
   // pulso visual de HP baixo
+=======
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
   if (player.hp > 0 && player.hp <= 25 && ((millis() / 260) % 2 == 0)) {
     frame.drawRect(0, 0, SCREEN_W, SCREEN_H, rgb(130, 20, 20));
   }
 
+<<<<<<< HEAD
   // efeito de dano
+=======
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
   if (millis() < damageFlashUntilMs) {
     frame.drawRect(0, 0, SCREEN_W, SCREEN_H, RED);
     frame.drawRect(1, 1, SCREEN_W - 2, SCREEN_H - 2, RED);
     frame.drawRect(2, 2, SCREEN_W - 4, SCREEN_H - 4, RED);
   }
+}
+
+static void drawLevelClearScreen() {
+  frame.fillScreen(BLACK);
+  drawCyberGrid();
+<<<<<<< HEAD
+  drawFrameBorder(titleColor);
+=======
+  drawFrameBorder(rgb(120, 255, 180));
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
+
+  frame.setTextDatum(middle_center);
+  frame.setTextSize(1);
+
+  frame.setTextColor(rgb(155, 90, 255), BLACK);
+<<<<<<< HEAD
+  frame.drawString("DOOMSTICKC v1.7", SCREEN_W / 2, 20, 2);
+=======
+  frame.drawString("DOOMSTICKC v1.8", SCREEN_W / 2, 18, 2);
+
+  frame.setTextColor(rgb(120, 255, 180), BLACK);
+  frame.drawString("FASE OK", SCREEN_W / 2, 50, 4);
+
+  frame.setTextColor(WHITE, BLACK);
+  frame.drawString("Preparando fase " + String(currentLevel + 2), SCREEN_W / 2, 84, 2);
+
+  frame.setTextColor(YELLOW, BLACK);
+  frame.drawString("+HP  +AMMO", SCREEN_W / 2, 110, 2);
+
+  frame.pushSprite(0, 0);
 }
 
 static void drawEndScreen(const char* title, const char* subtitle, uint16_t titleColor) {
@@ -898,7 +1204,8 @@ static void drawEndScreen(const char* title, const char* subtitle, uint16_t titl
   frame.setTextSize(1);
 
   frame.setTextColor(rgb(155, 90, 255), BLACK);
-  frame.drawString("DOOMSTICKC v1.7", SCREEN_W / 2, 20, 2);
+  frame.drawString("DOOMSTICKC v1.8", SCREEN_W / 2, 20, 2);
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
 
   frame.setTextColor(titleColor, BLACK);
   frame.drawString(title, SCREEN_W / 2, 56, 4);
@@ -918,13 +1225,21 @@ static void renderFrame() {
     return;
   }
 
+<<<<<<< HEAD
+=======
+  if (gameState == GAME_LEVEL_CLEAR) {
+    drawLevelClearScreen();
+    return;
+  }
+
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
   if (gameState == GAME_DEAD) {
     drawEndScreen("VOCE MORREU", "Tente novamente", RED);
     return;
   }
 
   if (gameState == GAME_WIN) {
-    drawEndScreen("FASE OK", "Prototipo concluido", rgb(120, 255, 180));
+    drawEndScreen("CAMPANHA OK", "3 fases concluidas", rgb(120, 255, 180));
     return;
   }
 
@@ -946,6 +1261,16 @@ static void handleInput(float dt) {
     return;
   }
 
+<<<<<<< HEAD
+=======
+  if (gameState == GAME_LEVEL_CLEAR) {
+    if (millis() - levelClearStartedMs >= LEVEL_CLEAR_PAUSE_MS) {
+      loadLevel(currentLevel + 1, true);
+    }
+    return;
+  }
+
+>>>>>>> 3fd9055 (Initial DoomStickC v1.7 audio feedback)
   if (gameState != GAME_PLAYING) {
     if (M5.BtnA.isPressed() && M5.BtnB.isPressed()) {
       resetGame(true);
