@@ -1,7 +1,7 @@
 # DoomStickC — Retro FPS Prototype for M5StickC Plus2
 
 ![Status](https://img.shields.io/badge/status-active--prototype-purple)
-![Version](https://img.shields.io/badge/version-v1.7--audio--feedback-blue)
+![Version](https://img.shields.io/badge/version-v3.5--weapons--foundation-blue)
 ![Platform](https://img.shields.io/badge/platform-M5StickC%20Plus2-orange)
 ![Framework](https://img.shields.io/badge/framework-Arduino%20%2B%20M5Unified-green)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
@@ -53,7 +53,8 @@ Main controls use only the built-in device inputs:
 | ----------------------- | ------------------------ |
 | Start game              | Button A                 |
 | Move forward            | Button A                 |
-| Fire                    | Button B                 |
+| Fire                    | Button B short press     |
+| Switch weapon           | Hold Button B            |
 | Turn left/right         | Tilt device left/right   |
 | Use / open door         | Quick press Power button |
 | Run                     | Hold Power button        |
@@ -64,7 +65,7 @@ Main controls use only the built-in device inputs:
 ## ✅ Current Version
 
 ```text
-DoomStickC MVP v1.7 — Audio and Feedback
+DoomStickC MVP v3.5 — Weapons Foundation
 Status: 100% functional on M5StickC Plus2
 ```
 
@@ -75,6 +76,7 @@ Current validated features:
 * Tilt calibration
 * Internal controls only
 * Smooth render using framebuffer / M5Canvas
+* PeekSecurity 8-bit loading screen
 * Basic raycasting world
 * Walls and doors
 * Minimap with border
@@ -82,6 +84,10 @@ Current validated features:
 * HP bar
 * Ammo system
 * Shooting
+* Weapon switching
+* Pistol weapon profile
+* Blaster weapon profile
+* Weapon indicator on HUD
 * Stronger shooting flash
 * Shooting sound
 * Empty ammo sound
@@ -89,18 +95,26 @@ Current validated features:
 * Enemy hit detection
 * Simple enemies
 * Improved fake enemy sprites
+* Complete enemy sprite drawing module
 * Simple enemy animation
 * Enemy chase behavior
-* Enemy damage
+* Per-level enemy damage balancing
+* Per-level enemy speed balancing
 * Damage sound
 * Red damage flash effect
 * Low HP visual pulse
 * Health pickup
 * Ammo pickup
 * Pickup sound
-* Pickup visual flash
+* Complete pickup sprite drawing module
 * Door sound
 * Exit / level finish pickup
+* 3 internal maps
+* Simple level progression
+* Level indicator on HUD
+* Level start preparation screen
+* Intermediate level-clear screen
+* Light HP/ammo bonus between levels
 * Win sound
 * Death sound
 * Start/menu screen
@@ -109,21 +123,107 @@ Current validated features:
 * Enemy counter
 * FPS counter
 * Death screen
-* Win screen
+* Campaign-complete screen
 * Restart with A + B
+* Multi-file modular project structure
+
+---
+
+## 🧩 Project Organization
+
+DoomStickC is now split into multiple foundation modules.
+
+Current modules:
+
+```text
+include/doomstickc/DoomStickCVersion.h
+include/doomstickc/DoomStickCConfig.h
+include/doomstickc/DoomStickCBuildInfo.h
+include/doomstickc/DoomStickCEnginePlan.h
+include/doomstickc/DoomStickCMaps.h
+include/doomstickc/DoomStickCPlayer.h
+include/doomstickc/DoomStickCEnemies.h
+include/doomstickc/DoomStickCUI.h
+include/doomstickc/DoomStickCAudio.h
+include/doomstickc/DoomStickCRender.h
+include/doomstickc/DoomStickCGameplay.h
+include/doomstickc/DoomStickCSprites.h
+include/doomstickc/DoomStickCWeapons.h
+
+src/doomstickc/DoomStickCVersion.cpp
+src/doomstickc/DoomStickCConfig.cpp
+src/doomstickc/DoomStickCBuildInfo.cpp
+src/doomstickc/DoomStickCEnginePlan.cpp
+src/doomstickc/DoomStickCMaps.cpp
+src/doomstickc/DoomStickCPlayer.cpp
+src/doomstickc/DoomStickCEnemies.cpp
+src/doomstickc/DoomStickCUI.cpp
+src/doomstickc/DoomStickCAudio.cpp
+src/doomstickc/DoomStickCRender.cpp
+src/doomstickc/DoomStickCGameplay.cpp
+src/doomstickc/DoomStickCSprites.cpp
+src/doomstickc/DoomStickCWeapons.cpp
+```
+
+### Module Summary
+
+| Module                 | Purpose                                                                          |
+| ---------------------- | -------------------------------------------------------------------------------- |
+| `DoomStickCVersion`    | Centralizes project/version labels                                               |
+| `DoomStickCConfig`     | Centralizes hardware/display/audio configuration                                 |
+| `DoomStickCBuildInfo`  | Stores build/stability labels                                                    |
+| `DoomStickCEnginePlan` | Documents future internal module split direction                                 |
+| `DoomStickCMaps`       | Centralizes map data and enemy spawn data                                        |
+| `DoomStickCPlayer`     | Centralizes player state, defaults, reset helpers and level bonuses              |
+| `DoomStickCEnemies`    | Centralizes enemy state, damage/speed/cooldown helpers                           |
+| `DoomStickCUI`         | Centralizes UI labels, HUD labels, status messages and loading timing            |
+| `DoomStickCAudio`      | Centralizes speaker setup, audio toggle, volume and tone helpers                 |
+| `DoomStickCRender`     | Centralizes safe render helpers such as borders, grid, sky/floor and wall colors |
+| `DoomStickCGameplay`   | Centralizes gameplay polish, level balance and future difficulty logic           |
+| `DoomStickCSprites`    | Centralizes pickup/enemy sprite sizing, colors and drawing                       |
+| `DoomStickCWeapons`    | Centralizes weapon profiles, ammo costs, ranges, aim cones and switching         |
 
 ---
 
 ## 🕹️ Gameplay Controls
 
-| Control           | Action                  |
-| ----------------- | ----------------------- |
-| Button A          | Start / move forward    |
-| Button B          | Shoot                   |
-| Tilt left/right   | Turn camera/player      |
-| Power quick press | Use / open door         |
-| Power hold        | Temporary run           |
-| A + B             | Restart on final screen |
+| Control              | Action                                         |
+| -------------------- | ---------------------------------------------- |
+| Button A             | Start / move forward / skip level start screen |
+| Button B short press | Shoot                                          |
+| Button B hold        | Switch weapon                                  |
+| Tilt left/right      | Turn camera/player                             |
+| Power quick press    | Use / open door                                |
+| Power hold           | Temporary run                                  |
+| A + B                | Restart on final screen                        |
+
+---
+
+## 🔫 Weapons
+
+### Pistol
+
+Default weapon.
+
+```text
+Ammo cost: 1
+Range: longer
+Aim cone: more precise
+HUD: WP
+```
+
+### Blaster
+
+Second weapon.
+
+```text
+Ammo cost: 2
+Range: shorter
+Aim cone: wider
+HUD: WB
+```
+
+The weapon foundation is intentionally simple and stable. Future versions may add weapon pickups, stronger weapon-specific visuals, projectile effects or weapon unlock progression.
 
 ---
 
@@ -219,6 +319,287 @@ Added:
 
 ---
 
+### v1.8 — Map and Level Expansion
+
+Focused on making the prototype feel more like a small campaign.
+
+Added:
+
+* 3 internal maps
+* Simple level progression
+* Intermediate `FASE OK` screen
+* HUD level indicator
+* Per-level enemy placement
+* Per-level pickup placement
+* Light HP/ammo bonus between levels
+* Final `CAMPANHA OK` screen
+
+---
+
+### v1.9 — Code Organization Foundation
+
+Focused on starting internal project organization without breaking validated gameplay.
+
+Added:
+
+* First separated metadata/version module
+* `DoomStickCVersion`
+* Centralized version labels
+* Multi-file PlatformIO structure validated
+* Foundation for future engine split
+
+---
+
+### v2.0 — Engine Split Foundation
+
+Focused on starting a safer modular engine structure while preserving the validated v1.9 gameplay.
+
+Added:
+
+* `DoomStickCConfig`
+* `DoomStickCBuildInfo`
+* `DoomStickCEnginePlan`
+* Updated `DoomStickCVersion`
+* Centralized hardware/display/audio config
+* Centralized build/stability labels
+* Internal roadmap module for future split
+* Multi-file modular foundation validated on hardware
+
+---
+
+### v2.1 — Maps Module
+
+Focused on moving map data and enemy spawn data into a dedicated module.
+
+Added:
+
+* `DoomStickCMaps`
+* 3 internal maps centralized
+* Enemy spawns centralized
+* Level progression preserved
+* Main file reduced safely
+
+---
+
+### v2.2 — Player Module
+
+Focused on moving player state and basic player helpers into a dedicated module.
+
+Added:
+
+* `DoomStickCPlayer`
+* Centralized player state
+* Centralized initial HP and ammo
+* Centralized level bonus helpers
+* Centralized player reset helpers
+* Centralized low-HP helper
+* Preserved movement, tilt, running, HP, ammo and level progression
+
+---
+
+### v2.3 — Enemies Module
+
+Focused on moving enemy state and small enemy helpers into a dedicated module.
+
+Added:
+
+* `DoomStickCEnemies`
+* Centralized enemy state
+* Centralized damage/speed/cooldown constants
+* Spawn loading helper
+* Alive count helper
+* Animation helper
+* Damage cooldown helper
+
+---
+
+### v2.4 — PeekSecurity Loading Screen
+
+Focused on adding the approved custom PeekSecurity 8-bit loading screen.
+
+Added:
+
+* Pixel-style loading screen drawn directly with `M5Canvas`
+* PeekSecurity cyberpunk purple/green look
+* Hexagon terminal `>_` icon
+* DOOMSTICKC + PeekSecurity branding
+* Pixel loading bar
+* Animated boot/status console
+* Button A skip after a short delay
+* No external image asset required
+
+---
+
+### v2.5 — UI Foundation
+
+Focused on centralizing UI labels and loading timing.
+
+Added:
+
+* `DoomStickCUI`
+* Loading screen labels centralized
+* Intro screen labels centralized
+* Level-clear/final screen labels centralized
+* Loading timing centralized
+
+---
+
+### v2.6 — Audio Module
+
+Focused on centralizing audio behavior.
+
+Added:
+
+* `DoomStickCAudio`
+* Audio toggle centralized
+* Speaker volume centralized
+* Tone constants centralized
+* `playToneSafe()` helper centralized
+* Speaker initialization moved to audio module
+
+---
+
+### v2.7 — Render Foundation
+
+Focused on creating a safe render foundation module.
+
+Added:
+
+* `DoomStickCRender`
+* Frame border helper
+* Cyber grid helper
+* Raycasting preserved in `main.cpp` for safety
+
+---
+
+### v2.8 — Deeper UI Module
+
+Focused on expanding the UI module.
+
+Added:
+
+* Centralized HUD labels
+* Centralized status messages
+* Centralized level-clear/final texts
+* Loading timing preserved in UI module
+* Reduced hardcoded strings in `main.cpp`
+
+---
+
+### v2.9 — Raycasting Render Split
+
+Focused on starting a safe split of the raycasting/render code.
+
+Added:
+
+* Sky/floor render helper
+* Wall shade calculation helper
+* Wall/door color helper
+* Helpers moved to `DoomStickCRender`
+* Main raycasting loop preserved in `main.cpp` for safety
+
+---
+
+### v3.0 — Gameplay Polish Foundation
+
+Focused on gameplay polish and a key spawn direction fix.
+
+Added:
+
+* `DoomStickCGameplay`
+* Gameplay polish/roadmap foundation
+* Fixed player starting direction
+* `START_ANGLE` changed from `0.0f` to `1.5707963f`
+* Player now starts facing a clearer corridor instead of a wall
+
+---
+
+### v3.1 — Sprite Render Split
+
+Focused on beginning safe sprite render organization.
+
+Added:
+
+* `DoomStickCSprites`
+* Pickup colors centralized
+* Pickup sizing centralized
+* Enemy colors centralized
+* Enemy sizing centralized
+* Enemy bob helper centralized
+* Full drawing routines still preserved in `main.cpp` at this stage
+
+---
+
+### v3.2 — Difficulty and Balance
+
+Focused on adding light per-level balance.
+
+Added:
+
+* Enemy damage by level:
+
+  * L1: 6
+  * L2: 7
+  * L3: 8
+* Enemy speed by level:
+
+  * L1: 0.38
+  * L2: 0.42
+  * L3: 0.47
+* Level bonus balance:
+
+  * L1 -> L2: +20 HP / +10 ammo
+  * L2 -> L3: +14 HP / +7 ammo
+* Dynamic damage status message
+* Custom level bonus helper in `DoomStickCPlayer`
+
+---
+
+### v3.3 — Level Start Polish
+
+Focused on making each level start feel more polished.
+
+Added:
+
+* `GAME_LEVEL_START`
+* Short LEVEL 1 / LEVEL 2 / LEVEL 3 preparation screen
+* Objective text: find `E`
+* Small preparation delay before enemies update
+* Button A skip for level-start screen
+
+---
+
+### v3.4 — Full Sprite Drawing Extraction
+
+Focused on extracting complete pickup/enemy sprite drawing into `DoomStickCSprites`.
+
+Added:
+
+* Complete pickup sprite drawing centralized
+* Complete enemy sprite drawing centralized
+* `main.cpp` reduced safely
+* AI, collision, hit detection and gameplay preserved
+
+---
+
+### v3.5 — Weapons Foundation
+
+Focused on adding the first weapon system foundation.
+
+Added:
+
+* `DoomStickCWeapons`
+* Pistol weapon profile
+* Blaster weapon profile
+* B short press to shoot
+* B hold to switch weapon
+* Weapon HUD indicator
+* Pistol ammo cost/range/aim profile
+* Blaster ammo cost/range/aim profile
+* Weapon-specific tone/flash behavior foundation
+
+---
+
 ## 🛠️ Build Requirements
 
 Recommended setup:
@@ -260,15 +641,30 @@ If upload fails, check:
 * CH9102 / USB serial driver is installed
 * Device is powered on
 * PlatformIO selected the correct environment
+* No other PlatformIO/Serial Monitor process is locking `.pio`
+
+If Windows reports that a `.pio` file is being used by another process, close extra terminals/monitors and run:
+
+```powershell
+pio run -t clean
+Remove-Item -Recurse -Force .pio
+pio run -t upload
+```
 
 ---
 
 ## 🔇 Disable Audio
 
-If speaker feedback causes issues on a specific setup, audio can be disabled in `src/main.cpp`:
+If speaker feedback causes issues on a specific setup, audio can be disabled through the configuration module:
 
 ```cpp
 static constexpr bool AUDIO_ENABLED = false;
+```
+
+Location:
+
+```text
+include/doomstickc/DoomStickCConfig.h
 ```
 
 By default, audio is enabled:
@@ -281,13 +677,43 @@ static constexpr bool AUDIO_ENABLED = true;
 
 ## 📁 Project Structure
 
+Current structure:
+
 ```text
 doomstickc-m5stickc-plus2/
 ├── platformio.ini
 ├── README.md
 ├── src/
-│   └── main.cpp
+│   ├── main.cpp
+│   └── doomstickc/
+│       ├── DoomStickCVersion.cpp
+│       ├── DoomStickCConfig.cpp
+│       ├── DoomStickCBuildInfo.cpp
+│       ├── DoomStickCEnginePlan.cpp
+│       ├── DoomStickCMaps.cpp
+│       ├── DoomStickCPlayer.cpp
+│       ├── DoomStickCEnemies.cpp
+│       ├── DoomStickCUI.cpp
+│       ├── DoomStickCAudio.cpp
+│       ├── DoomStickCRender.cpp
+│       ├── DoomStickCGameplay.cpp
+│       ├── DoomStickCSprites.cpp
+│       └── DoomStickCWeapons.cpp
 ├── include/
+│   └── doomstickc/
+│       ├── DoomStickCVersion.h
+│       ├── DoomStickCConfig.h
+│       ├── DoomStickCBuildInfo.h
+│       ├── DoomStickCEnginePlan.h
+│       ├── DoomStickCMaps.h
+│       ├── DoomStickCPlayer.h
+│       ├── DoomStickCEnemies.h
+│       ├── DoomStickCUI.h
+│       ├── DoomStickCAudio.h
+│       ├── DoomStickCRender.h
+│       ├── DoomStickCGameplay.h
+│       ├── DoomStickCSprites.h
+│       └── DoomStickCWeapons.h
 └── data/
 ```
 
@@ -301,7 +727,7 @@ doomstickc-m5stickc-plus2/
 ├── CHANGELOG.md
 ├── ROADMAP.md
 ├── src/
-│   └── main.cpp
+├── include/
 ├── docs/
 │   └── development-notes.md
 ├── media/
@@ -314,41 +740,56 @@ doomstickc-m5stickc-plus2/
 
 ## 🧭 Roadmap
 
-### v1.8 — Map and Level Expansion
+### v3.6 — Weapon Pickups
 
 Planned improvements:
 
-* Multiple maps
-* Better level layout
-* More doors
-* More pickups
-* Enemy placement balancing
-* Simple level progression
-* Start of a small campaign-like flow
+* Add weapon pickup to maps
+* Keep Pistol as default
+* Unlock Blaster through pickup
+* Add weapon pickup icon
+* Preserve current weapon switching behavior
 
 ---
 
-### v1.9 — Code Organization
+### v3.7 — Difficulty Modes
 
 Planned improvements:
 
-* Split rendering, player, map, enemies, audio and UI into separate files
-* Cleaner architecture
-* Easier maintenance
-* Better version control for future features
+* Easy / Normal / Hard foundation
+* Keep Normal as default
+* Centralize difficulty multipliers
+* Preserve current balance as Normal
 
 ---
 
-### v2.0 — Engine Refactor
+### v3.8 — Objective / Score Polish
 
-Possible future direction:
+Planned improvements:
 
-* Cleaner engine structure
+* Add objective status
+* Add score/time tracking foundation
+* Add simple performance summary after campaign
+* Preserve gameplay and controls
+
+---
+
+### Future Direction
+
+Possible future improvements:
+
+* Better weapon visuals
+* Weapon pickups
+* Weapon-specific sprite/flash effects
+* Better enemy types
 * Better sprite system
 * Optimized raycasting
 * More stable FPS
-* Asset compression experiments
-* More advanced level logic
+* More maps
+* Map selector
+* Save best time / score
+* Difficulty selector
+* More polished campaign flow
 
 ---
 
@@ -362,6 +803,9 @@ The main goals of DoomStickC are:
 * Keep the project educational and open
 * Document the full evolution from prototype to playable mini game
 * Create a fun maker/cyberpunk project for the PeekSecurity community
+* Keep every version validated on real hardware before moving forward
+* Refactor safely, one module at a time
+* Preserve stability while expanding gameplay
 
 ---
 
@@ -377,12 +821,15 @@ make it run
 make it playable
 make it smoother
 make it fun
-then make it beautiful
+organize it safely
+split the engine carefully
+add gameplay depth
+then make it bigger
 ```
 
-The first versions may look rough, flickery, or experimental. That is expected.
-
 Each version improves one major area at a time.
+
+Validated versions are treated as stable checkpoints.
 
 ---
 
@@ -414,6 +861,7 @@ DoomStickC follows the PeekSecurity maker/cyberpunk spirit:
 * Purple neon aesthetic
 * DIY experimentation
 * Learning by building
+* Game dev experimentation on unusual hardware
 
 ---
 
@@ -441,3 +889,4 @@ This project will keep improving version by version.
 DoomStickC is alive.
 Tiny hardware. Big experiment.
 ```
+
