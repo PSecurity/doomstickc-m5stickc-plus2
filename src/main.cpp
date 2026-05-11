@@ -1,16 +1,16 @@
 /*
-  DoomStickC MVP v1.9 - Code Organization Foundation
+  DoomStickC MVP v2.0 - Engine Split Foundation
   Hardware: M5StickC Plus2
   Framework: Arduino + M5Unified
 
   Base:
-    - v1.8 Map and Level Expansion validada como funcional.
+    - v1.9 Code Organization Foundation validada como funcional.
 
-  Objetivo da v1.9:
-    - Iniciar organização do projeto em módulos sem quebrar a base validada.
-    - Adicionar módulo de metadados/versão em include/doomstickc.
-    - Validar estrutura multi-file no PlatformIO.
-    - Preservar gameplay, mapas, visual, áudio, controles e framebuffer da v1.8.
+  Objetivo da v2.0:
+    - Iniciar a fundação de split real da engine.
+    - Adicionar módulos de configuração, build info e roadmap interno.
+    - Preparar a separação futura de mapas, player, inimigos, áudio, UI e render.
+    - Preservar gameplay, mapas, visual, áudio, controles e framebuffer da v1.9.
 
   Controles:
     - Tela inicial: Botão A inicia
@@ -26,25 +26,32 @@
 #include <M5Unified.h>
 #include <math.h>
 #include "doomstickc/DoomStickCVersion.h"
+#include "doomstickc/DoomStickCConfig.h"
+#include "doomstickc/DoomStickCBuildInfo.h"
+#include "doomstickc/DoomStickCEnginePlan.h"
 
-// v1.9 starts the code organization phase.
-// Gameplay remains intentionally preserved from v1.8.
-// First extracted module:
-//   include/doomstickc/DoomStickCVersion.h
-//   src/doomstickc/DoomStickCVersion.cpp
+// v2.0 starts the Engine Split Foundation phase.
+// Gameplay remains intentionally preserved from v1.9.
+// Existing module:
+//   DoomStickCVersion
+//
+// New foundation modules:
+//   DoomStickCConfig
+//   DoomStickCBuildInfo
+//   DoomStickCEnginePlan
 //
 // Future refactor targets:
-//   config, maps, player, enemies, rendering, audio, UI.
+//   maps, player, enemies, rendering, audio, UI.
 //
 // -----------------------------
 // HARDWARE / TELA
 // -----------------------------
-static constexpr int SCREEN_W = 240;
-static constexpr int SCREEN_H = 135;
+static constexpr int SCREEN_W = DoomStickCConfig::SCREEN_W;
+static constexpr int SCREEN_H = DoomStickCConfig::SCREEN_H;
 
-static constexpr int PIN_POWER_BUTTON = 35;
-static constexpr int PIN_HOLD = 4;
-static constexpr bool POWER_ACTIVE_LOW = true;
+static constexpr int PIN_POWER_BUTTON = DoomStickCConfig::PIN_POWER_BUTTON;
+static constexpr int PIN_HOLD = DoomStickCConfig::PIN_HOLD;
+static constexpr bool POWER_ACTIVE_LOW = DoomStickCConfig::POWER_ACTIVE_LOW;
 
 M5Canvas frame(&M5.Display);
 
@@ -85,8 +92,8 @@ static constexpr uint32_t INTRO_MIN_MS = 900;
 static constexpr uint32_t LEVEL_CLEAR_PAUSE_MS = 900;
 
 // Audio / feedback.
-static constexpr bool AUDIO_ENABLED = true;
-static constexpr uint8_t AUDIO_VOLUME = 110;
+static constexpr bool AUDIO_ENABLED = DoomStickCConfig::AUDIO_ENABLED;
+static constexpr uint8_t AUDIO_VOLUME = DoomStickCConfig::AUDIO_VOLUME;
 
 static constexpr int TONE_SHOOT = 1800;
 static constexpr int TONE_EMPTY = 180;
@@ -682,7 +689,7 @@ static void drawIntroScreen() {
   frame.drawString(DoomStickCVersion::INTRO_LABEL, SCREEN_W / 2, 69, 2);
 
   frame.setTextColor(rgb(200, 200, 255), BLACK);
-  frame.drawString("3 fases internas", SCREEN_W / 2, 87, 1);
+  frame.drawString(DoomStickCBuildInfo::ENGINE_LABEL, SCREEN_W / 2, 87, 1);
 
   uint32_t pulse = (millis() / 280) % 2;
   frame.setTextColor(pulse ? YELLOW : rgb(180, 180, 180), BLACK);
