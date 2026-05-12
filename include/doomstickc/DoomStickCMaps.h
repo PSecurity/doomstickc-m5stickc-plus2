@@ -7,6 +7,9 @@
   Centralizes internal map data and enemy spawn data.
 
   This module is data-only for now.
+
+  Cell legend update:
+  B = weapon pickup / Blaster
   It preserves the v2.0 maps, pickups, doors, exits and enemy placements.
 */
 

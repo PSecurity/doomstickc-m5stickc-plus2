@@ -20,7 +20,9 @@ namespace DoomStickCPlayer {
 
   static constexpr float START_X = 2.5f;
   static constexpr float START_Y = 2.5f;
-  static constexpr float START_ANGLE = 0.0f;
+  // v3.0 fix:
+  // PI/2 makes the player start facing down the map corridor instead of a wall.
+  static constexpr float START_ANGLE = 1.5707963f;
 
   struct PlayerState {
     float x;
@@ -47,6 +49,14 @@ namespace DoomStickCPlayer {
       player.hp = PLAYER_MAX_HP;
     }
     player.ammo += PLAYER_LEVEL_AMMO_BONUS;
+  }
+
+  inline void applyLevelBonus(PlayerState& player, int hpBonus, int ammoBonus) {
+    player.hp += hpBonus;
+    if (player.hp > PLAYER_MAX_HP) {
+      player.hp = PLAYER_MAX_HP;
+    }
+    player.ammo += ammoBonus;
   }
 
   inline bool isLowHp(const PlayerState& player) {

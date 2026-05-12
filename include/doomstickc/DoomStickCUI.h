@@ -35,6 +35,7 @@ namespace DoomStickCUI {
   static constexpr const char* HUD_ENEMIES = "EN ";
   static constexpr const char* HUD_RUN = "R";
   static constexpr const char* HUD_FPS = "F";
+  static constexpr const char* HUD_WEAPON = "W";
 
   // Status messages
   static constexpr const char* STATUS_READY = "Pronto";
@@ -49,6 +50,8 @@ namespace DoomStickCUI {
   static constexpr const char* STATUS_EMPTY_AMMO = "Sem municao";
   static constexpr const char* STATUS_ENEMY_DOWN = "Inimigo abatido";
   static constexpr const char* STATUS_SHOT = "Tiro";
+  static constexpr const char* STATUS_WEAPON_PREFIX = "Arma: ";
+  static constexpr const char* STATUS_WEAPON_PICKUP = "Blaster coletada";
   static constexpr const char* STATUS_RUN = "Corrida ativada";
   static constexpr const char* STATUS_DAMAGE = "-7 Vida";
   static constexpr const char* STATUS_DEAD = "Voce morreu";
@@ -58,6 +61,9 @@ namespace DoomStickCUI {
   static constexpr const char* LEVEL_CLEAR_TITLE = "FASE OK";
   static constexpr const char* LEVEL_CLEAR_PREFIX = "Preparando fase ";
   static constexpr const char* LEVEL_CLEAR_BONUS = "+HP  +AMMO";
+  static constexpr const char* LEVEL_START_TITLE_PREFIX = "LEVEL ";
+  static constexpr const char* LEVEL_START_OBJECTIVE = "Objetivo: encontre o E";
+  static constexpr const char* LEVEL_START_HINT = "Prepare-se";
   static constexpr const char* DEAD_TITLE = "VOCE MORREU";
   static constexpr const char* DEAD_SUBTITLE = "Tente novamente";
   static constexpr const char* WIN_TITLE = "CAMPANHA OK";

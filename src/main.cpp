@@ -1,15 +1,15 @@
 /*
-  DoomStickC MVP v2.8 - Deeper UI Module
+  DoomStickC MVP v3.7 - Weapon Visual Polish
   Hardware: M5StickC Plus2
   Framework: Arduino + M5Unified
 
   Base:
-    - v2.7 Render Foundation validada como funcional.
+    - v3.6 Weapon Pickups validada como funcional.
 
-  Objetivo da v2.8:
-    - Aprofundar o módulo de UI centralizando status messages e labels de HUD.
-    - Reduzir strings soltas no main.cpp sem alterar gameplay.
-    - Preservar raycasting, tela de loading, render, áudio, controles e framebuffer da v2.7.
+  Objetivo da v3.7:
+    - Diferenciar visualmente Pistol e Blaster sem alterar gameplay.
+    - Adicionar desenho/flash/HUD mais claro por arma.
+    - Preservar pickups de arma, controles, dificuldade, render, loading PeekSecurity, UI, áudio e framebuffer da v3.6.
 
   Controles:
     - Tela inicial: Botão A inicia
@@ -34,9 +34,12 @@
 #include "doomstickc/DoomStickCUI.h"
 #include "doomstickc/DoomStickCAudio.h"
 #include "doomstickc/DoomStickCRender.h"
+#include "doomstickc/DoomStickCGameplay.h"
+#include "doomstickc/DoomStickCSprites.h"
+#include "doomstickc/DoomStickCWeapons.h"
 
-// v2.8 deepens the UI Module.
-// Gameplay remains intentionally preserved from v2.7.
+// v3.7 adds Weapon Visual Polish.
+// Gameplay remains intentionally preserved from v3.6.
 //
 // Existing modules:
 //   DoomStickCVersion
@@ -49,12 +52,15 @@
 //   DoomStickCUI
 //   DoomStickCAudio
 //   DoomStickCRender
+//   DoomStickCGameplay
+//   DoomStickCSprites
+//   DoomStickCWeapons
 //
-// New v2.8 work:
-//   more HUD/status labels moved into DoomStickCUI.
+// New v3.7 work:
+//   weapon-specific hand sprite, muzzle flash and HUD accent.
 //
 // Future refactor targets:
-//   raycasting extraction, deeper render extraction.
+//   difficulty modes, objective/score polish, map selector.
 //
 // -----------------------------
 // HARDWARE / TELA
@@ -135,6 +141,7 @@ Enemy enemies[ENEMY_COUNT];
 enum GameState {
   GAME_LOADING,
   GAME_INTRO,
+  GAME_LEVEL_START,
   GAME_PLAYING,
   GAME_DEAD,
   GAME_LEVEL_CLEAR,
@@ -145,6 +152,7 @@ GameState gameState = GAME_INTRO;
 
 int currentLevel = 0;
 uint32_t levelClearStartedMs = 0;
+uint32_t levelStartStartedMs = 0;
 
 float tiltCenter = 0.0f;
 bool imuReady = false;
@@ -159,6 +167,11 @@ uint32_t damageFlashUntilMs = 0;
 uint32_t emptyAmmoFlashUntilMs = 0;
 uint32_t pickupFlashUntilMs = 0;
 String statusLine = DoomStickCVersion::STATUS_LABEL;
+
+DoomStickCWeapons::WeaponState weaponState;
+bool fireButtonWasDown = false;
+bool fireButtonHoldFired = false;
+uint32_t fireButtonDownAtMs = 0;
 
 bool powerWasDown = false;
 bool powerHoldFired = false;
@@ -200,7 +213,7 @@ static inline bool isBlockingCell(int mx, int my) {
 }
 
 static inline bool isPickupCell(char c) {
-  return c == 'H' || c == 'M' || c == 'E';
+  return c == 'H' || c == 'M' || c == 'E' || c == 'B';
 }
 
 static inline float angleNormalize(float a) {
@@ -236,7 +249,7 @@ static void loadLevel(int level, bool keepStats) {
   if (!keepStats) {
     DoomStickCPlayer::resetStats(player);
   } else {
-    DoomStickCPlayer::applyLevelBonus(player);
+    DoomStickCPlayer::applyLevelBonus(player, DoomStickCGameplay::hpBonusForNextLevel(currentLevel - 1), DoomStickCGameplay::ammoBonusForNextLevel(currentLevel - 1));
   }
 
   for (int i = 0; i < ENEMY_COUNT; i++) {
@@ -250,8 +263,11 @@ static void loadLevel(int level, bool keepStats) {
   pickupFlashUntilMs = 0;
   powerWasDown = false;
   powerHoldFired = false;
+  fireButtonWasDown = false;
+  fireButtonHoldFired = false;
 
-  gameState = GAME_PLAYING;
+  gameState = GAME_LEVEL_START;
+  levelStartStartedMs = millis();
   setStatus(String(DoomStickCUI::STATUS_LEVEL_PREFIX) + String(currentLevel + 1), 1200);
   playToneSafe(DoomStickCAudio::TONE_LEVEL, 120);
 }
@@ -259,6 +275,7 @@ static void loadLevel(int level, bool keepStats) {
 static void resetGame(bool startPlaying) {
   currentLevel = 0;
   DoomStickCPlayer::resetStats(player);
+  DoomStickCWeapons::reset(weaponState);
   copyLevelMap(0);
 
   DoomStickCPlayer::resetPosition(player);
@@ -267,7 +284,10 @@ static void resetGame(bool startPlaying) {
     DoomStickCEnemies::loadFromSpawn(enemies[i], DoomStickCMaps::LEVEL_ENEMIES[0][i]);
   }
 
-  gameState = startPlaying ? GAME_PLAYING : GAME_INTRO;
+  gameState = startPlaying ? GAME_LEVEL_START : GAME_INTRO;
+  if (startPlaying) {
+    levelStartStartedMs = millis();
+  }
   sprintUntilMs = 0;
   shootFlashUntilMs = 0;
   damageFlashUntilMs = 0;
@@ -275,6 +295,8 @@ static void resetGame(bool startPlaying) {
   pickupFlashUntilMs = 0;
   powerWasDown = false;
   powerHoldFired = false;
+  fireButtonWasDown = false;
+  fireButtonHoldFired = false;
   setStatus(startPlaying ? (String(DoomStickCUI::STATUS_LEVEL_PREFIX) + String(1)) : String(DoomStickCUI::STATUS_READY), 1000);
 }
 
@@ -356,6 +378,12 @@ static void handlePickupAtPlayer() {
     pickupFlashUntilMs = millis() + 180;
     playToneSafe(DoomStickCAudio::TONE_PICKUP + 260, 70);
     setStatus(DoomStickCUI::STATUS_AMMO_PICKUP);
+  } else if (c == 'B') {
+    DoomStickCWeapons::unlockBlaster(weaponState);
+    worldMap[my][mx] = '.';
+    pickupFlashUntilMs = millis() + 220;
+    playToneSafe(DoomStickCAudio::TONE_LEVEL + DoomStickCWeapons::toneBoost(DoomStickCWeapons::WeaponId::Blaster), 100);
+    setStatus(DoomStickCUI::STATUS_WEAPON_PICKUP);
   } else if (c == 'E') {
     worldMap[my][mx] = '.';
     startLevelClear();
@@ -380,19 +408,63 @@ static void useDoorAhead() {
   setStatus(DoomStickCUI::STATUS_NOTHING_TO_USE);
 }
 
+static void shoot();
+
+static void switchWeapon() {
+  if (!weaponState.blasterUnlocked) {
+    playToneSafe(DoomStickCAudio::TONE_EMPTY, 55);
+    setStatus(String(DoomStickCUI::STATUS_WEAPON_PREFIX) + String(DoomStickCWeapons::label(weaponState.current)), 900);
+    return;
+  }
+
+  DoomStickCWeapons::switchNext(weaponState);
+  playToneSafe(DoomStickCAudio::TONE_LEVEL + DoomStickCWeapons::toneBoost(weaponState.current), 90);
+  setStatus(String(DoomStickCUI::STATUS_WEAPON_PREFIX) + String(DoomStickCWeapons::label(weaponState.current)), 1000);
+}
+
+static void updateFireButtonManual() {
+  uint32_t now = millis();
+  bool down = M5.BtnB.isPressed();
+
+  if (down && !fireButtonWasDown) {
+    fireButtonWasDown = true;
+    fireButtonHoldFired = false;
+    fireButtonDownAtMs = now;
+  }
+
+  if (down && !fireButtonHoldFired && (now - fireButtonDownAtMs >= DoomStickCWeapons::HOLD_TO_SWITCH_MS)) {
+    fireButtonHoldFired = true;
+    switchWeapon();
+  }
+
+  if (!down && fireButtonWasDown) {
+    uint32_t pressMs = now - fireButtonDownAtMs;
+
+    if (!fireButtonHoldFired && pressMs <= DoomStickCWeapons::SHORT_PRESS_MAX_MS) {
+      shoot();
+    }
+
+    fireButtonWasDown = false;
+    fireButtonHoldFired = false;
+  }
+}
+
+
 static void shoot() {
   if (gameState != GAME_PLAYING) return;
 
-  if (player.ammo <= 0) {
+  int cost = DoomStickCWeapons::ammoCost(weaponState.current);
+
+  if (player.ammo < cost) {
     emptyAmmoFlashUntilMs = millis() + 180;
     playToneSafe(DoomStickCAudio::TONE_EMPTY, 75);
     setStatus(DoomStickCUI::STATUS_EMPTY_AMMO);
     return;
   }
 
-  player.ammo--;
-  shootFlashUntilMs = millis() + 95;
-  playToneSafe(DoomStickCAudio::TONE_SHOOT, 35);
+  player.ammo -= cost;
+  shootFlashUntilMs = millis() + DoomStickCWeapons::flashMs(weaponState.current);
+  playToneSafe(DoomStickCAudio::TONE_SHOOT + DoomStickCWeapons::toneBoost(weaponState.current), 35);
 
   int bestIndex = -1;
   float bestScore = 9999.0f;
@@ -403,12 +475,12 @@ static void shoot() {
     float dx = enemies[i].x - player.x;
     float dy = enemies[i].y - player.y;
     float dist = sqrtf(dx * dx + dy * dy);
-    if (dist > 8.0f) continue;
+    if (dist > DoomStickCWeapons::range(weaponState.current)) continue;
 
     float targetAngle = atan2f(dy, dx);
     float delta = fabsf(angleNormalize(targetAngle - player.a));
 
-    if (delta < 0.16f && hasLineOfSight(player.x, player.y, enemies[i].x, enemies[i].y)) {
+    if (delta < DoomStickCWeapons::aimCone(weaponState.current) && hasLineOfSight(player.x, player.y, enemies[i].x, enemies[i].y)) {
       float score = delta * 10.0f + dist * 0.1f;
       if (score < bestScore) {
         bestScore = score;
@@ -419,7 +491,7 @@ static void shoot() {
 
   if (bestIndex >= 0) {
     enemies[bestIndex].alive = false;
-    playToneSafe(DoomStickCAudio::TONE_SHOOT + 420, 55);
+    playToneSafe(DoomStickCAudio::TONE_SHOOT + 420 + DoomStickCWeapons::toneBoost(weaponState.current), 55);
     setStatus(DoomStickCUI::STATUS_ENEMY_DOWN);
   } else {
     setStatus(DoomStickCUI::STATUS_SHOT);
@@ -472,12 +544,12 @@ static void updateEnemies(float dt) {
     if (dist < ENEMY_ATTACK_DISTANCE) {
       if (DoomStickCEnemies::canDamage(enemies[i], now)) {
         DoomStickCEnemies::markDamage(enemies[i], now);
-        player.hp -= ENEMY_DAMAGE;
+        player.hp -= DoomStickCGameplay::enemyDamageForLevel(currentLevel);
         if (player.hp < 0) player.hp = 0;
 
         damageFlashUntilMs = now + DAMAGE_FLASH_MS;
         playToneSafe(DoomStickCAudio::TONE_DAMAGE, 90);
-        setStatus(DoomStickCUI::STATUS_DAMAGE, 700);
+        setStatus(String("-") + String(DoomStickCGameplay::enemyDamageForLevel(currentLevel)) + String(" Vida"), 700);
 
         if (player.hp <= 0) {
           gameState = GAME_DEAD;
@@ -491,8 +563,8 @@ static void updateEnemies(float dt) {
 
     if (dist < 7.5f && hasLineOfSight(enemies[i].x, enemies[i].y, player.x, player.y)) {
       float inv = 1.0f / max(0.01f, dist);
-      float vx = dx * inv * ENEMY_SPEED * dt;
-      float vy = dy * inv * ENEMY_SPEED * dt;
+      float vx = dx * inv * DoomStickCGameplay::enemySpeedForLevel(currentLevel) * dt;
+      float vy = dy * inv * DoomStickCGameplay::enemySpeedForLevel(currentLevel) * dt;
 
       float nx = enemies[i].x + vx;
       float ny = enemies[i].y + vy;
@@ -774,14 +846,19 @@ static void drawHud() {
   frame.print(DoomStickCUI::HUD_ENEMIES);
   frame.print(enemiesAliveCount());
 
+  frame.setTextColor(DoomStickCWeapons::hudColor(M5.Display, weaponState.current), hudBg);
+  frame.setCursor(181, 5);
+  frame.print(DoomStickCUI::HUD_WEAPON);
+  frame.print(DoomStickCWeapons::shortLabel(weaponState.current));
+
   if (millis() < sprintUntilMs) {
     frame.setTextColor(YELLOW, hudBg);
-    frame.setCursor(181, 5);
+    frame.setCursor(198, 5);
     frame.print(DoomStickCUI::HUD_RUN);
   }
 
   frame.setTextColor(rgb(130, 255, 180), hudBg);
-  frame.setCursor(207, 5);
+  frame.setCursor(213, 5);
   frame.print(fpsValue);
   frame.print(DoomStickCUI::HUD_FPS);
 }
@@ -790,25 +867,49 @@ static void drawWeapon() {
   int cx = SCREEN_W / 2;
   int baseY = SCREEN_H - 1;
 
-  uint16_t metal = rgb(46, 46, 58);
-  uint16_t metal2 = rgb(82, 82, 98);
+  uint16_t metal = DoomStickCWeapons::bodyColor(M5.Display, weaponState.current);
+  uint16_t metal2 = DoomStickCWeapons::bodyAltColor(M5.Display, weaponState.current);
   uint16_t dark = rgb(18, 18, 26);
-  uint16_t edge = rgb(135, 65, 245);
+  uint16_t edge = DoomStickCWeapons::edgeColor(M5.Display, weaponState.current);
 
-  frame.fillRoundRect(cx - 28, baseY - 35, 56, 37, 7, dark);
-  frame.drawRoundRect(cx - 28, baseY - 35, 56, 37, 7, edge);
-  frame.fillRoundRect(cx - 16, baseY - 29, 32, 29, 5, metal);
-  frame.drawFastVLine(cx - 8, baseY - 26, 22, rgb(25, 25, 34));
-  frame.drawFastVLine(cx + 8, baseY - 26, 22, rgb(25, 25, 34));
-  frame.fillRect(cx - 7, baseY - 48, 14, 25, metal2);
-  frame.fillRect(cx - 5, baseY - 53, 10, 8, rgb(105, 105, 125));
+  int barrelW = DoomStickCWeapons::barrelWidth(weaponState.current);
+  int barrelH = DoomStickCWeapons::barrelHeight(weaponState.current);
 
-  if (millis() < shootFlashUntilMs) {
-    frame.fillTriangle(cx, baseY - 80, cx - 23, baseY - 49, cx + 23, baseY - 49, YELLOW);
-    frame.fillTriangle(cx, baseY - 70, cx - 12, baseY - 52, cx + 12, baseY - 52, WHITE);
+  if (weaponState.current == DoomStickCWeapons::WeaponId::Blaster) {
+    frame.fillRoundRect(cx - 34, baseY - 38, 68, 40, 8, dark);
+    frame.drawRoundRect(cx - 34, baseY - 38, 68, 40, 8, edge);
+    frame.fillRoundRect(cx - 23, baseY - 30, 46, 30, 6, metal);
+    frame.drawFastVLine(cx - 13, baseY - 27, 23, rgb(15, 35, 42));
+    frame.drawFastVLine(cx + 13, baseY - 27, 23, rgb(15, 35, 42));
+    frame.fillRect(cx - barrelW / 2, baseY - 52, barrelW, barrelH, metal2);
+    frame.drawRect(cx - barrelW / 2, baseY - 52, barrelW, barrelH, edge);
+    frame.fillCircle(cx - 15, baseY - 18, 3, edge);
+    frame.fillCircle(cx + 15, baseY - 18, 3, edge);
+  } else {
+    frame.fillRoundRect(cx - 28, baseY - 35, 56, 37, 7, dark);
+    frame.drawRoundRect(cx - 28, baseY - 35, 56, 37, 7, edge);
+    frame.fillRoundRect(cx - 16, baseY - 29, 32, 29, 5, metal);
+    frame.drawFastVLine(cx - 8, baseY - 26, 22, rgb(25, 25, 34));
+    frame.drawFastVLine(cx + 8, baseY - 26, 22, rgb(25, 25, 34));
+    frame.fillRect(cx - barrelW / 2, baseY - 48, barrelW, barrelH, metal2);
+    frame.fillRect(cx - 5, baseY - 53, 10, 8, rgb(105, 105, 125));
   }
 
-  uint16_t cross = rgb(170, 255, 210);
+  if (millis() < shootFlashUntilMs) {
+    uint16_t flashOuter = DoomStickCWeapons::flashOuterColor(M5.Display, weaponState.current);
+    uint16_t flashInner = DoomStickCWeapons::flashInnerColor(M5.Display, weaponState.current);
+
+    if (weaponState.current == DoomStickCWeapons::WeaponId::Blaster) {
+      frame.fillTriangle(cx, baseY - 92, cx - 31, baseY - 50, cx + 31, baseY - 50, flashOuter);
+      frame.fillTriangle(cx, baseY - 78, cx - 18, baseY - 54, cx + 18, baseY - 54, flashInner);
+      frame.drawCircle(cx, baseY - 62, 13, flashOuter);
+    } else {
+      frame.fillTriangle(cx, baseY - 80, cx - 23, baseY - 49, cx + 23, baseY - 49, flashOuter);
+      frame.fillTriangle(cx, baseY - 70, cx - 12, baseY - 52, cx + 12, baseY - 52, flashInner);
+    }
+  }
+
+  uint16_t cross = DoomStickCWeapons::hudColor(M5.Display, weaponState.current);
   frame.drawFastHLine(cx - 6, SCREEN_H / 2, 12, cross);
   frame.drawFastVLine(cx, SCREEN_H / 2 - 6, 12, cross);
 }
@@ -829,6 +930,7 @@ static void drawMiniMap() {
       if (c == 'H') col = rgb(60, 180, 90);
       if (c == 'M') col = rgb(60, 115, 210);
       if (c == 'E') col = rgb(200, 210, 80);
+      if (c == 'B') col = rgb(180, 80, 255);
       frame.fillRect(ox + x * scale, oy + y * scale, scale - 1, scale - 1, col);
     }
   }
@@ -865,23 +967,10 @@ static void drawPickups3D() {
       if (fabsf(delta) > FOV * 0.56f) continue;
 
       int sx = (int)((0.5f + delta / FOV) * SCREEN_W);
-      int size = (int)(31.0f / dist);
-      if (size < 4) size = 4;
-      if (size > 19) size = 19;
+      int size = DoomStickCSprites::pickupSize(dist);
       int sy = SCREEN_H / 2 + (int)(20.0f / dist);
 
-      uint16_t col = WHITE;
-      if (c == 'H') col = rgb(80, 255, 120);
-      if (c == 'M') col = rgb(80, 150, 255);
-      if (c == 'E') col = rgb(250, 230, 80);
-
-      frame.drawCircle(sx, sy, size / 2 + 2, col);
-      frame.fillRoundRect(sx - size / 2, sy - size / 2, size, size, 3, col);
-      frame.setTextDatum(middle_center);
-      frame.setTextSize(1);
-      frame.setTextColor(BLACK, col);
-      frame.drawString(String(c), sx, sy);
-      frame.setTextDatum(top_left);
+      DoomStickCSprites::drawPickupSprite(frame, M5.Display, sx, sy, size, c);
     }
   }
 }
@@ -901,42 +990,28 @@ static void drawEnemies() {
     if (fabsf(delta) > FOV * 0.56f) continue;
 
     int sx = (int)((0.5f + delta / FOV) * SCREEN_W);
-    int spriteH = (int)(70.0f / dist);
-    if (spriteH < 6) spriteH = 6;
-    if (spriteH > 60) spriteH = 60;
-    int spriteW = spriteH / 2;
+    int spriteH = DoomStickCSprites::enemySpriteHeight(dist);
+    int spriteW = DoomStickCSprites::enemySpriteWidth(spriteH);
 
-    int bob = (int)(sinf(enemies[i].anim) * 2.0f);
+    int bob = DoomStickCSprites::enemyBob(enemies[i].anim);
     int sy = SCREEN_H / 2 - spriteH / 2 + 8 + bob;
 
-    uint16_t body = rgb(165, 55, 50);
-    uint16_t body2 = rgb(120, 35, 35);
-    uint16_t dark = rgb(60, 18, 20);
-    uint16_t eye = rgb(255, 235, 90);
-
-    frame.fillEllipse(sx, sy + spriteH + 3, max(3, spriteW), 3, rgb(18, 12, 18));
-    frame.fillRoundRect(sx - spriteW / 2, sy, spriteW, spriteH, 4, body);
-    frame.drawRoundRect(sx - spriteW / 2, sy, spriteW, spriteH, 4, dark);
-    frame.fillRect(sx - spriteW / 2 + 2, sy + spriteH / 2, max(2, spriteW - 4), spriteH / 3, body2);
-    frame.fillCircle(sx - spriteW / 4, sy + spriteH / 4, 2, eye);
-    frame.fillCircle(sx + spriteW / 4, sy + spriteH / 4, 2, eye);
-    frame.drawFastHLine(sx - spriteW / 3, sy + spriteH / 2, max(2, spriteW * 2 / 3), dark);
-    frame.drawLine(sx - spriteW / 2, sy + 4, sx - spriteW, sy - 5, dark);
-    frame.drawLine(sx + spriteW / 2, sy + 4, sx + spriteW, sy - 5, dark);
-    frame.drawLine(sx - spriteW / 2, sy + spriteH / 2, sx - spriteW, sy + spriteH / 2 + 8, dark);
-    frame.drawLine(sx + spriteW / 2, sy + spriteH / 2, sx + spriteW, sy + spriteH / 2 + 8, dark);
+    DoomStickCSprites::drawEnemySprite(frame, M5.Display, sx, sy, spriteW, spriteH);
   }
 }
 
 static void renderWorld() {
   frame.fillScreen(BLACK);
 
-  frame.fillRect(0, 19, SCREEN_W, (SCREEN_H - 19) / 2, rgb(20, 20, 40));
-  frame.fillRect(0, 19 + (SCREEN_H - 19) / 2, SCREEN_W, (SCREEN_H - 19) / 2, rgb(28, 24, 23));
-
-  for (int y = SCREEN_H / 2 + 10; y < SCREEN_H; y += 10) {
-    frame.drawFastHLine(0, y, SCREEN_W, rgb(45, 35, 55));
-  }
+  DoomStickCRender::drawSkyAndFloor(
+    frame,
+    SCREEN_W,
+    SCREEN_H,
+    19,
+    rgb(20, 20, 40),
+    rgb(28, 24, 23),
+    rgb(45, 35, 55)
+  );
 
   for (int x = 0; x < SCREEN_W; x += RAY_COLUMN_STEP) {
     float rayAngle = (player.a - FOV / 2.0f) + ((float)x / (float)SCREEN_W) * FOV;
@@ -968,18 +1043,8 @@ static void renderWorld() {
     if (ceiling < 19) ceiling = 19;
     if (floorY >= SCREEN_H) floorY = SCREEN_H - 1;
 
-    float shadeF = 218.0f - corrected * 25.0f;
-    if (shadeF < 18.0f) shadeF = 18.0f;
-    if (shadeF > 240.0f) shadeF = 240.0f;
-    uint8_t shade = (uint8_t)shadeF;
-
-    uint16_t wallCol;
-    if (hitCell == 'D') {
-      wallCol = rgb(shade, (uint8_t)(shade * 0.58f), 30);
-    } else {
-      uint8_t phase = (uint8_t)(currentLevel * 16);
-      wallCol = rgb((uint8_t)(shade * 0.40f + phase), (uint8_t)(shade * 0.34f), shade);
-    }
+    uint8_t shade = DoomStickCRender::computeWallShade(corrected);
+    uint16_t wallCol = DoomStickCRender::makeWallColor(M5.Display, hitCell, shade, currentLevel);
 
     frame.fillRect(x, ceiling, RAY_COLUMN_STEP, floorY - ceiling, wallCol);
 
@@ -1028,6 +1093,30 @@ static void renderWorld() {
     frame.drawRect(1, 1, SCREEN_W - 2, SCREEN_H - 2, RED);
     frame.drawRect(2, 2, SCREEN_W - 4, SCREEN_H - 4, RED);
   }
+}
+
+
+static void drawLevelStartScreen() {
+  frame.fillScreen(BLACK);
+  drawCyberGrid();
+  drawFrameBorder(rgb(135, 65, 245));
+
+  frame.setTextDatum(middle_center);
+  frame.setTextSize(1);
+
+  frame.setTextColor(rgb(155, 90, 255), BLACK);
+  frame.drawString(DoomStickCVersion::STATUS_LABEL, SCREEN_W / 2, 18, 2);
+
+  frame.setTextColor(rgb(120, 255, 180), BLACK);
+  frame.drawString(String(DoomStickCUI::LEVEL_START_TITLE_PREFIX) + String(currentLevel + 1), SCREEN_W / 2, 49, 4);
+
+  frame.setTextColor(WHITE, BLACK);
+  frame.drawString(DoomStickCUI::LEVEL_START_OBJECTIVE, SCREEN_W / 2, 82, 2);
+
+  frame.setTextColor(YELLOW, BLACK);
+  frame.drawString(DoomStickCUI::LEVEL_START_HINT, SCREEN_W / 2, 108, 2);
+
+  frame.pushSprite(0, 0);
 }
 
 static void drawLevelClearScreen() {
@@ -1087,6 +1176,11 @@ static void renderFrame() {
     return;
   }
 
+  if (gameState == GAME_LEVEL_START) {
+    drawLevelStartScreen();
+    return;
+  }
+
   if (gameState == GAME_LEVEL_CLEAR) {
     drawLevelClearScreen();
     return;
@@ -1129,6 +1223,14 @@ static void handleInput(float dt) {
     return;
   }
 
+  if (gameState == GAME_LEVEL_START) {
+    if (millis() - levelStartStartedMs >= DoomStickCGameplay::LEVEL_START_PAUSE_MS || M5.BtnA.wasPressed()) {
+      gameState = GAME_PLAYING;
+      setStatus(String(DoomStickCUI::STATUS_LEVEL_PREFIX) + String(currentLevel + 1), 800);
+    }
+    return;
+  }
+
   if (gameState == GAME_LEVEL_CLEAR) {
     if (millis() - levelClearStartedMs >= LEVEL_CLEAR_PAUSE_MS) {
       loadLevel(currentLevel + 1, true);
@@ -1143,9 +1245,7 @@ static void handleInput(float dt) {
     return;
   }
 
-  if (M5.BtnB.wasPressed()) {
-    shoot();
-  }
+  updateFireButtonManual();
 
   updatePowerButtonManual();
 
