@@ -2,16 +2,17 @@
 
 #include <Arduino.h>
 #include <M5Unified.h>
+#include "doomstickc/DoomStickCEnemies.h"
 
 /*
   DoomStickCSprites
-  v3.4 Full Sprite Drawing Extraction
+  v4.0 Full Evolution
 
-  Centralizes safe visual helpers and complete sprite drawing for pickups/enemies.
-
-  This module is intentionally conservative:
-  - It does not change enemy AI, hit detection, damage or gameplay.
-  - It only moves already validated drawing code out of main.cpp.
+  Adiciona visual por tipo de inimigo:
+  - Normal : vermelho (original)
+  - Fast   : laranja/amarelo, menor
+  - Tank   : cinza/verde escuro, maior
+  - Ranged : roxo/azul, com "olho" brilhante
 */
 
 namespace DoomStickCSprites {
@@ -19,14 +20,15 @@ namespace DoomStickCSprites {
 
   int pickupSize(float distance);
 
-  int enemySpriteHeight(float distance);
-  int enemySpriteWidth(int spriteHeight);
+  int enemySpriteHeight(float distance, DoomStickCEnemies::EnemyType type);
+  int enemySpriteWidth(int spriteHeight, DoomStickCEnemies::EnemyType type);
   int enemyBob(float anim);
 
-  uint16_t enemyBodyColor(lgfx::LGFX_Device& display);
-  uint16_t enemyBodyAltColor(lgfx::LGFX_Device& display);
-  uint16_t enemyDarkColor(lgfx::LGFX_Device& display);
-  uint16_t enemyEyeColor(lgfx::LGFX_Device& display);
+  // Cores por tipo
+  uint16_t enemyBodyColor(lgfx::LGFX_Device& display, DoomStickCEnemies::EnemyType type);
+  uint16_t enemyBodyAltColor(lgfx::LGFX_Device& display, DoomStickCEnemies::EnemyType type);
+  uint16_t enemyDarkColor(lgfx::LGFX_Device& display, DoomStickCEnemies::EnemyType type);
+  uint16_t enemyEyeColor(lgfx::LGFX_Device& display, DoomStickCEnemies::EnemyType type);
   uint16_t enemyShadowColor(lgfx::LGFX_Device& display);
 
   void drawPickupSprite(
@@ -44,6 +46,8 @@ namespace DoomStickCSprites {
     int sx,
     int sy,
     int spriteW,
-    int spriteH
+    int spriteH,
+    DoomStickCEnemies::EnemyType type,
+    int hp
   );
 }

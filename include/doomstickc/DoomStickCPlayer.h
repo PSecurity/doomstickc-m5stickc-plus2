@@ -2,34 +2,28 @@
 
 /*
   DoomStickCPlayer
-  v2.2 Player Module
+  v4.0 Full Evolution
 
   Centralizes player state, defaults and safe stat helpers.
-
-  This module is intentionally conservative:
-  - It preserves validated v2.1 movement/gameplay behavior.
-  - It does not change controls, speed, tilt, collision or render.
-  - It prepares future extraction of movement and collision helpers.
+  Ammo inicial agora vem de DoomStickCGameplay (dificuldade).
 */
 
 namespace DoomStickCPlayer {
-  static constexpr int PLAYER_MAX_HP = 100;
-  static constexpr int PLAYER_START_AMMO = 24;
+  static constexpr int PLAYER_MAX_HP         = 100;
+  static constexpr int PLAYER_START_AMMO     = 24;   // default Normal
   static constexpr int PLAYER_LEVEL_HP_BONUS = 18;
   static constexpr int PLAYER_LEVEL_AMMO_BONUS = 8;
 
-  static constexpr float START_X = 2.5f;
-  static constexpr float START_Y = 2.5f;
-  // v3.0 fix:
-  // PI/2 makes the player start facing down the map corridor instead of a wall.
-  static constexpr float START_ANGLE = 1.5707963f;
+  static constexpr float START_X     = 2.5f;
+  static constexpr float START_Y     = 2.5f;
+  static constexpr float START_ANGLE = 1.5707963f;  // PI/2 — corredor
 
   struct PlayerState {
     float x;
     float y;
     float a;
-    int hp;
-    int ammo;
+    int   hp;
+    int   ammo;
   };
 
   inline void resetPosition(PlayerState& player) {
@@ -38,24 +32,14 @@ namespace DoomStickCPlayer {
     player.a = START_ANGLE;
   }
 
-  inline void resetStats(PlayerState& player) {
-    player.hp = PLAYER_MAX_HP;
-    player.ammo = PLAYER_START_AMMO;
-  }
-
-  inline void applyLevelBonus(PlayerState& player) {
-    player.hp += PLAYER_LEVEL_HP_BONUS;
-    if (player.hp > PLAYER_MAX_HP) {
-      player.hp = PLAYER_MAX_HP;
-    }
-    player.ammo += PLAYER_LEVEL_AMMO_BONUS;
+  inline void resetStats(PlayerState& player, int startAmmo = PLAYER_START_AMMO) {
+    player.hp   = PLAYER_MAX_HP;
+    player.ammo = startAmmo;
   }
 
   inline void applyLevelBonus(PlayerState& player, int hpBonus, int ammoBonus) {
     player.hp += hpBonus;
-    if (player.hp > PLAYER_MAX_HP) {
-      player.hp = PLAYER_MAX_HP;
-    }
+    if (player.hp > PLAYER_MAX_HP) player.hp = PLAYER_MAX_HP;
     player.ammo += ammoBonus;
   }
 

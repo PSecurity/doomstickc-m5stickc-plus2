@@ -1,47 +1,135 @@
 #pragma once
 
+#include <Arduino.h>
+
 /*
   DoomStickCGameplay
-  v3.2 Difficulty and Balance
+  v4.0 Full Evolution
 
-  Centralizes safe gameplay balance helpers.
-
-  This module remains conservative:
-  - No difficulty menu yet.
-  - No control changes.
-  - Only light per-level balance values are centralized.
+  - Modos de dificuldade: Easy / Normal / Hard
+  - Score: kills + tempo
+  - Balanceamento por fase e dificuldade
 */
 
 namespace DoomStickCGameplay {
-  static constexpr const char* POLISH_STAGE = "Difficulty and Balance";
-  static constexpr const char* FIX_START_DIRECTION = "Player starts facing corridor instead of wall";
-  static constexpr const char* NEXT_BALANCE_TARGET = "Difficulty modes";
-  static constexpr const char* NEXT_FLOW_TARGET = "Cleaner level start experience";
 
-  // Current global profile: NORMAL.
-  static constexpr const char* DIFFICULTY_LABEL = "NORMAL";
+  // ---- Dificuldade ----
+  enum class Difficulty : uint8_t {
+    Easy   = 0,
+    Normal = 1,
+    Hard   = 2
+  };
+
+  static constexpr const char* DIFFICULTY_LABELS[] = { "EASY", "NORMAL", "HARD" };
+  static constexpr const char* POLISH_STAGE         = "Full Evolution";
+  static constexpr const char* DIFFICULTY_LABEL     = "NORMAL";
   static constexpr unsigned long LEVEL_START_PAUSE_MS = 900;
 
+  // Dificuldade atual (alterada na tela inicial)
+  extern Difficulty currentDifficulty;
+
+  // ---- Score ----
+  struct ScoreState {
+    int   totalKills;
+    int   levelKills;
+    uint32_t levelStartMs;
+    uint32_t totalTimeMs;
+    uint32_t levelTimeMs;
+  };
+
+  extern ScoreState score;
+
+  inline void resetScore() {
+    score.totalKills  = 0;
+    score.levelKills  = 0;
+    score.levelStartMs = 0;
+    score.totalTimeMs  = 0;
+    score.levelTimeMs  = 0;
+  }
+
+  inline void startLevelTimer(uint32_t nowMs) {
+    score.levelStartMs = nowMs;
+    score.levelKills   = 0;
+  }
+
+  inline void finishLevelTimer(uint32_t nowMs) {
+    score.levelTimeMs  = nowMs - score.levelStartMs;
+    score.totalTimeMs += score.levelTimeMs;
+  }
+
+  inline void registerKill() {
+    score.totalKills++;
+    score.levelKills++;
+  }
+
+  // ---- Multiplicadores de dificuldade ----
+  inline float difficultyDamageMultiplier() {
+    switch (currentDifficulty) {
+      case Difficulty::Easy: return 0.60f;
+      case Difficulty::Hard: return 1.55f;
+      default:               return 1.00f;
+    }
+  }
+
+  inline float difficultySpeedMultiplier() {
+    switch (currentDifficulty) {
+      case Difficulty::Easy: return 0.70f;
+      case Difficulty::Hard: return 1.35f;
+      default:               return 1.00f;
+    }
+  }
+
+  inline int difficultyStartAmmo() {
+    switch (currentDifficulty) {
+      case Difficulty::Easy: return 36;
+      case Difficulty::Hard: return 16;
+      default:               return 24;
+    }
+  }
+
+  // ---- Balanceamento por fase ----
   inline int enemyDamageForLevel(int levelIndex) {
-    if (levelIndex <= 0) return 6;
-    if (levelIndex == 1) return 7;
-    return 8;
+    int base;
+    if      (levelIndex <= 0) base = 6;
+    else if (levelIndex == 1) base = 7;
+    else if (levelIndex == 2) base = 8;
+    else if (levelIndex == 3) base = 10;
+    else                      base = 13;
+    return static_cast<int>(base * difficultyDamageMultiplier());
   }
 
   inline float enemySpeedForLevel(int levelIndex) {
-    if (levelIndex <= 0) return 0.38f;
-    if (levelIndex == 1) return 0.42f;
-    return 0.47f;
+    float base;
+    if      (levelIndex <= 0) base = 0.38f;
+    else if (levelIndex == 1) base = 0.42f;
+    else if (levelIndex == 2) base = 0.47f;
+    else if (levelIndex == 3) base = 0.52f;
+    else                      base = 0.58f;
+    return base * difficultySpeedMultiplier();
   }
 
   inline int hpBonusForNextLevel(int levelIndex) {
-    // Level 1 -> 2 gives more help; Level 2 -> 3 gives less.
     if (levelIndex <= 0) return 20;
-    return 14;
+    if (levelIndex == 1) return 16;
+    if (levelIndex == 2) return 12;
+    return 8;
   }
 
   inline int ammoBonusForNextLevel(int levelIndex) {
     if (levelIndex <= 0) return 10;
-    return 7;
+    if (levelIndex == 1) return 8;
+    if (levelIndex == 2) return 6;
+    return 5;
+  }
+
+  // ---- Score final ----
+  // Retorna pontuação: kills * 100 + bônus de tempo
+  inline int computeFinalScore() {
+    int killScore = score.totalKills * 100;
+    // Bônus de tempo: quanto mais rápido, mais pontos (máx 5000)
+    uint32_t totalSec = score.totalTimeMs / 1000;
+    int timeBonus = (totalSec < 300) ? (int)(5000 - totalSec * 15) : 0;
+    if (timeBonus < 0) timeBonus = 0;
+    return killScore + timeBonus;
   }
 }

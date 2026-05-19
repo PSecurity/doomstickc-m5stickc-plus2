@@ -1,4 +1,6 @@
 #include "doomstickc/DoomStickCGameplay.h"
 
-// Balance helpers are inline for now.
-// Future versions may add selectable difficulty profiles here.
+namespace DoomStickCGameplay {
+  Difficulty  currentDifficulty = Difficulty::Normal;
+  ScoreState  score = {0, 0, 0, 0, 0};
+}
