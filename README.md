@@ -1,7 +1,7 @@
 # DoomStickC — Retro FPS Prototype for M5StickC Plus2
 
 ![Status](https://img.shields.io/badge/status-active--prototype-purple)
-![Version](https://img.shields.io/badge/version-v3.7--weapon--visual--polish-blue)
+![Version](https://img.shields.io/badge/version-v4.0--full--evolution-blue)
 ![Platform](https://img.shields.io/badge/platform-M5StickC%20Plus2-orange)
 ![Framework](https://img.shields.io/badge/framework-Arduino%20%2B%20M5Unified-green)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
@@ -54,10 +54,11 @@ Main controls use only the built-in device inputs:
 | Start game | Button A |
 | Move forward | Button A |
 | Fire | Button B short press |
-| Switch weapon | Hold Button B after Blaster unlock |
+| Switch weapon | Hold Button B |
 | Turn left/right | Tilt device left/right |
-| Use / open door | Quick press Power button |
+| Use / open door / secret wall | Quick press Power button |
 | Run | Hold Power button |
+| Change difficulty (intro only) | Quick press Power button |
 | Skip level start screen | Button A |
 | Restart after death/win | Button A + Button B |
 
@@ -66,7 +67,7 @@ Main controls use only the built-in device inputs:
 ## ✅ Current Version
 
 ```text
-DoomStickC MVP v3.7 — Weapon Visual Polish
+DoomStickC MVP v4.0 — Full Evolution
 Status: 100% functional on M5StickC Plus2
 ```
 
@@ -79,34 +80,48 @@ Current validated features:
 - Smooth render using framebuffer / M5Canvas
 - PeekSecurity 8-bit loading screen
 - Basic raycasting world
-- Walls and doors
-- Minimap with border
+- Walls, doors and secret walls
+- Minimap with border and color-coded enemy types
 - Player HP
 - HP bar
 - Ammo system
 - Shooting
-- Weapon switching after unlock
+- Weapon switching (cycle through unlocked weapons)
 - Pistol weapon profile
 - Blaster weapon profile
+- Shotgun weapon profile (area weapon, hits multiple enemies)
 - Weapon pickup system
 - Blaster unlock through pickup `B`
+- Shotgun unlock through pickup `S`
 - Weapon indicator on HUD
 - Weapon-specific HUD accent color
 - Weapon-specific crosshair color
 - Weapon-specific muzzle flash
 - Compact Pistol visual
 - Wider/energy-style Blaster visual
+- Double-barrel Shotgun visual
 - Shooting sound
 - Empty ammo sound
 - Empty ammo visual border
-- Enemy hit detection
-- Simple enemies
-- Improved fake enemy sprites
-- Complete enemy sprite drawing module
+- 4 enemy types: Normal, Fast, Tank, Ranged
+- Normal enemy: red, standard behavior
+- Fast enemy: orange, 1.85x speed, smaller sprite
+- Tank enemy: green, 3 HP, HP bar visible, double damage
+- Ranged enemy: purple, cyclops, stops and shoots from distance
+- Enemy hit detection with HP system
+- Enemy sprite visual per type
 - Simple enemy animation
 - Enemy chase behavior
+- Ranged enemy projectile with cooldown
 - Per-level enemy damage balancing
 - Per-level enemy speed balancing
+- Difficulty modes: Easy / Normal / Hard
+- Difficulty selection on intro screen (Power button cycles)
+- Difficulty multipliers for damage, speed and starting ammo
+- Score system: kills × 100 + time bonus
+- Kill counter on HUD
+- Level time displayed on level-clear screen
+- Final score, total kills and total time on win screen
 - Damage sound
 - Red damage flash effect
 - Low HP visual pulse
@@ -115,12 +130,14 @@ Current validated features:
 - Pickup sound
 - Complete pickup sprite drawing module
 - Door sound
+- Secret wall (`W`) opens with Power button
+- Secret room discovery feedback
 - Exit / level finish pickup
-- 3 internal maps
-- Simple level progression
+- 5 internal maps (20×16)
+- Level progression across 5 levels
 - Level indicator on HUD
 - Level start preparation screen
-- Intermediate level-clear screen
+- Intermediate level-clear screen with kills and time
 - Light HP/ammo bonus between levels
 - Win sound
 - Death sound
@@ -130,7 +147,7 @@ Current validated features:
 - Enemy counter
 - FPS counter
 - Death screen
-- Campaign-complete screen
+- Campaign-complete screen with score summary
 - Restart with A + B
 - Multi-file modular project structure
 
@@ -180,15 +197,15 @@ src/doomstickc/DoomStickCWeapons.cpp
 | `DoomStickCConfig` | Centralizes hardware/display/audio configuration |
 | `DoomStickCBuildInfo` | Stores build/stability labels |
 | `DoomStickCEnginePlan` | Documents future internal module split direction |
-| `DoomStickCMaps` | Centralizes map data and enemy spawn data |
+| `DoomStickCMaps` | Centralizes map data (5 levels, 20×16) and enemy spawn data with type |
 | `DoomStickCPlayer` | Centralizes player state, defaults, reset helpers and level bonuses |
-| `DoomStickCEnemies` | Centralizes enemy state, damage/speed/cooldown helpers |
+| `DoomStickCEnemies` | Centralizes enemy types (Normal/Fast/Tank/Ranged), HP system, AI helpers |
 | `DoomStickCUI` | Centralizes UI labels, HUD labels, status messages and loading timing |
 | `DoomStickCAudio` | Centralizes speaker setup, audio toggle, volume and tone helpers |
 | `DoomStickCRender` | Centralizes safe render helpers such as borders, grid, sky/floor and wall colors |
-| `DoomStickCGameplay` | Centralizes gameplay polish, level balance and future difficulty logic |
-| `DoomStickCSprites` | Centralizes pickup/enemy sprite sizing, colors and drawing |
-| `DoomStickCWeapons` | Centralizes weapon profiles, unlock state, ammo costs, ranges, aim cones and visual helpers |
+| `DoomStickCGameplay` | Centralizes difficulty modes, score/time tracking and per-level balance |
+| `DoomStickCSprites` | Centralizes pickup/enemy sprite sizing, colors and drawing per enemy type |
+| `DoomStickCWeapons` | Centralizes weapon profiles (Pistol/Blaster/Shotgun), unlock state, ammo costs, ranges, aim cones and visual helpers |
 
 ---
 
@@ -198,9 +215,10 @@ src/doomstickc/DoomStickCWeapons.cpp
 |---|---|
 | Button A | Start / move forward / skip level start screen |
 | Button B short press | Shoot |
-| Button B hold | Switch weapon after Blaster unlock |
+| Button B hold | Switch weapon (cycles through unlocked weapons) |
 | Tilt left/right | Turn camera/player |
-| Power quick press | Use / open door |
+| Power quick press | Use / open door / open secret wall |
+| Power quick press (intro) | Cycle difficulty: Easy → Normal → Hard |
 | Power hold | Temporary run |
 | A + B | Restart on final screen |
 
@@ -215,7 +233,8 @@ Default weapon. Always available.
 ```text
 Ammo cost: 1
 Range: longer
-Aim cone: more precise
+Aim cone: precise
+Targets: single enemy
 HUD: WP
 Visual: compact weapon style
 ```
@@ -228,24 +247,145 @@ Unlockable weapon. Collected through pickup `B`.
 Ammo cost: 2
 Range: shorter
 Aim cone: wider
+Targets: single enemy
 HUD: WB
 Visual: wider energy-style weapon
+```
+
+### Shotgun
+
+Unlockable weapon. Collected through pickup `S`. Grants +8 ammo on pickup.
+
+```text
+Ammo cost: 4
+Range: short
+Aim cone: very wide (0.55 rad)
+Targets: multiple enemies simultaneously
+HUD: WS
+Visual: double-barrel weapon
 ```
 
 Weapon behavior:
 
 - Pistol is the default weapon.
-- Blaster is locked at the start.
+- Blaster and Shotgun are locked at the start.
 - Pickup `B` unlocks and selects Blaster.
+- Pickup `S` unlocks and selects Shotgun.
 - Button B short press shoots.
-- Button B hold switches between Pistol and Blaster after Blaster is unlocked.
+- Button B hold cycles through all unlocked weapons.
 - HUD accent color changes based on the selected weapon.
 - Crosshair color follows the selected weapon.
-- Muzzle flash differs between Pistol and Blaster.
+- Muzzle flash differs per weapon.
+- Shotgun hits all enemies within its wide cone in a single shot.
 
 ---
 
-## 🧪 Prototype Versions
+## 👾 Enemy Types
+
+### Normal
+
+Standard enemy. Red sprite.
+
+```text
+Speed:  1.0x
+HP:     1
+Damage: base
+Behavior: chases player on sight
+```
+
+### Fast
+
+Quick but fragile. Orange sprite, smaller.
+
+```text
+Speed:  1.85x
+HP:     1
+Damage: base
+Behavior: chases player faster, harder to dodge
+```
+
+### Tank
+
+Slow and tough. Green sprite, larger, HP bar visible.
+
+```text
+Speed:  0.52x
+HP:     3 (requires 3 hits)
+Damage: 2x base
+Behavior: slow chase, hits hard, HP bar shown above sprite
+```
+
+### Ranged
+
+Keeps distance and shoots. Purple cyclops sprite with antenna.
+
+```text
+Speed:  0.60x
+HP:     2
+Damage: base (projectile)
+Behavior: stops at safe distance, fires projectiles with 1.8s cooldown
+```
+
+Enemy composition increases in difficulty across the 5 levels.
+
+---
+
+## 🎯 Difficulty Modes
+
+Selected on the intro screen by pressing the Power button. Cycles through:
+
+| Mode | Enemy Damage | Enemy Speed | Starting Ammo |
+|---|---|---|---|
+| Easy | 60% | 70% | 36 |
+| Normal | 100% | 100% | 24 |
+| Hard | 155% | 135% | 16 |
+
+The selected difficulty is shown on the intro screen and affects all 5 levels.
+
+---
+
+## 🏆 Score System
+
+Score is calculated at the end of the campaign:
+
+```text
+Score = (total kills × 100) + time bonus
+Time bonus = max(0, 5000 - total_seconds × 15)
+```
+
+- Kill counter is shown live on the HUD during gameplay.
+- Level time and level kills are shown on the level-clear screen.
+- Final score, total kills and total time are shown on the win screen.
+
+---
+
+## 🗺️ Maps
+
+5 internal maps, each 20×16 tiles.
+
+| Level | Theme | Enemy Focus |
+|---|---|---|
+| 1 | Entry corridor with secret room | 4 Normal, 2 Fast, 1 Tank, 1 Ranged |
+| 2 | Labyrinth with multiple rooms | 2 Normal, 3 Fast, 2 Tank, 1 Ranged |
+| 3 | Spiral layout | 2 Normal, 2 Fast, 2 Tank, 2 Ranged |
+| 4 | Open arena | 1 Normal, 2 Fast, 3 Tank, 2 Ranged |
+| 5 | Final fortress | 0 Normal, 2 Fast, 3 Tank, 3 Ranged |
+
+### Map Cell Legend
+
+| Cell | Meaning |
+|---|---|
+| `#` | Wall |
+| `.` | Floor |
+| `D` | Door (opens with Power button) |
+| `W` | Secret wall (looks like a wall, opens with Power button) |
+| `H` | Health pickup (+30 HP) |
+| `M` | Ammo pickup (+12 ammo) |
+| `B` | Blaster pickup (unlocks Blaster weapon) |
+| `S` | Shotgun pickup (unlocks Shotgun weapon, +8 ammo) |
+| `E` | Exit / level finish |
+
+---
 
 ### v1.3 — Functional Boot
 
@@ -648,7 +788,41 @@ Added:
 
 ---
 
-## 🛠️ Build Requirements
+### v4.0 — Full Evolution
+
+Focused on a major gameplay expansion across all dimensions.
+
+Added:
+
+- 4 enemy types: Normal, Fast, Tank, Ranged
+  - Normal: red, standard behavior
+  - Fast: orange, 1.85x speed, smaller sprite
+  - Tank: green, 3 HP, HP bar visible above sprite, double damage
+  - Ranged: purple cyclops with antenna, stops and fires projectiles with cooldown
+- 8 enemies per level (was 4), with increasing type composition across levels
+- Shotgun weapon (pickup `S`)
+  - Double-barrel visual
+  - Wide cone (0.55 rad) — hits multiple enemies simultaneously
+  - Ammo cost: 4, short range
+  - Grants +8 ammo on pickup
+- Weapon cycle now covers all 3 weapons (Pistol → Blaster → Shotgun)
+- Ranged enemy projectile system with 1.8s cooldown
+- Tank HP system — requires multiple hits, HP bar shown on sprite
+- Score system: kills × 100 + time bonus (max 5000)
+- Kill counter on HUD during gameplay
+- Level time and level kills on level-clear screen
+- Final score, total kills and total time on win screen
+- Difficulty modes: Easy / Normal / Hard
+  - Selected on intro screen with Power button
+  - Affects enemy damage, enemy speed and starting ammo
+- 5 levels (was 3), maps expanded to 20×16 (was 16×16)
+- Secret walls (`W`) — look like normal walls, open with Power button
+- Secret room discovery feedback
+- Minimap updated: color-coded dots per enemy type
+- Per-level enemy composition designed for increasing challenge
+- Level balance extended to 5 levels
+
+---
 
 Recommended setup:
 
@@ -788,36 +962,33 @@ doomstickc-m5stickc-plus2/
 
 ## 🧭 Roadmap
 
-### v3.8 — Objective / Score Polish
+### v4.1 — Map Selector
 
 Planned improvements:
 
-- Add objective status
-- Add score/time tracking foundation
-- Add simple performance summary after campaign
-- Preserve gameplay and controls
-
----
-
-### v3.9 — Difficulty Modes
-
-Planned improvements:
-
-- Easy / Normal / Hard foundation
-- Keep Normal as default
-- Centralize difficulty multipliers
-- Preserve current balance as Normal
-
----
-
-### v4.0 — Map Selector Foundation
-
-Planned improvements:
-
-- Add menu/select flow foundation
-- Add campaign/map selection idea
+- Add menu/select flow for choosing a specific level
 - Preserve default campaign flow
 - Keep controls simple for M5StickC Plus2
+
+---
+
+### v4.2 — Save Best Score
+
+Planned improvements:
+
+- Save best score and best time to NVS/flash
+- Show best score on win screen
+- Persist across reboots
+
+---
+
+### v4.3 — More Enemy Behaviors
+
+Planned improvements:
+
+- Ranged enemy with visible projectile sprite
+- Enemy that patrols instead of waiting
+- Enemy that calls others when it spots the player
 
 ---
 
@@ -825,16 +996,14 @@ Planned improvements:
 
 Possible future improvements:
 
-- Better weapon visuals
-- Weapon-specific sprite/flash effects
-- Better enemy types
-- Better sprite system
+- Better weapon visuals and animations
+- More weapon types
+- More enemy types
 - Optimized raycasting
 - More stable FPS
 - More maps
-- Map selector
-- Save best time / score
-- Difficulty selector
+- Boss enemy on final level
+- Better sprite system
 - More polished campaign flow
 
 ---
@@ -934,4 +1103,5 @@ This project will keep improving version by version.
 ```text
 DoomStickC is alive.
 Tiny hardware. Big experiment.
+v4.0 — Full Evolution.
 ```
